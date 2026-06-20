@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "daintegrate",
+  "version": "${version}",
+  "name": "donation-alerts-integrate",
+  "description": "Modification can interact with your chat as well as with the rest of the world through commands. See the keyboard settings to open the modification's window (By default, the key is equals '=').",
+  "authors": ["bUmmy1337"],
+  "contact": {
+    "sources": "https://github.com/bummy1337/da-integration",
+    "issues": "https://github.com/bummy1337/da-integration/issues/"
+  },
+  "license": "MIT",
+  "icon": "assets/daintegratew/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "net.folleach.daintegrate.fabric.ClientEntryPoint"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "minecraft": ">=26.1"
+  }
+}

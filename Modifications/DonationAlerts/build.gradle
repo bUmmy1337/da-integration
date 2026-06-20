@@ -1,0 +1,29 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations{
+    addtojar
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+    implementation('com.google.code.gson:gson:2.8.0')
+    implementation('io.socket:socket.io-client:0.8.1')
+    implementation('org.yaml:snakeyaml:2.1')
+
+    addtojar 'com.google.code.gson:gson:2.8.0'
+    addtojar 'io.socket:socket.io-client:0.8.1'
+    addtojar 'org.yaml:snakeyaml:2.1'
+
+}
+
+test {
+    useJUnitPlatform()
+}
