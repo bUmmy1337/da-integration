@@ -14,7 +14,7 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "net.folleach.daintegrate.fabric.ClientEntryPoint"
+      "net.bummy1337.daintegrate.fabric.ClientEntryPoint"
     ]
   },
   "depends": {

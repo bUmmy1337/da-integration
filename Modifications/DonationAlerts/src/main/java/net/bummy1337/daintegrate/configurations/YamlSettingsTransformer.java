@@ -1,0 +1,85 @@
+package net.bummy1337.daintegrate.configurations;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
+import net.bummy1337.daintegrate.Constants;
+import net.bummy1337.daintegrate.DonationAlertsIntegrate;
+import net.bummy1337.daintegrate.ITransformer;
+import org.yaml.snakeyaml.Yaml;
+
+import java.util.LinkedHashMap;
+
+public class YamlSettingsTransformer implements ITransformer<String, SettingsDto> {
+    private static final Gson gson = new Gson();
+
+    @Override
+    public SettingsDto transform(String input) {
+        input = input.replaceAll("!!net\\.(folleach|bummy1337)\\.daintegrate\\.\\S+", "");
+        var yaml = new Yaml();
+        var result = yaml.loadAs(input, SettingsDto.class);
+        if (result.triggers == null)
+            return result;
+        for (var trigger : result.triggers) {
+            if (trigger == null)
+                continue;
+            for (var handler : trigger.handlers) {
+                if (handler == null)
+                    continue;
+                replaceHashMap(handler.properties);
+            }
+            for (var sensitive : trigger.sensitives) {
+                if (sensitive == null)
+                    continue;
+                replaceHashMap(sensitive.properties);
+            }
+        }
+        return result;
+    }
+
+    // (аё‡ в—‰ _ в—‰)аё‡ Even the UI in the first versions of the mod will not be worse than this
+    @SuppressWarnings("unchecked")
+    private void replaceHashMap(PropertiesDto properties) {
+        var typeName = properties.type;
+
+        if (!DonationAlertsIntegrate.knownEntity(typeName)) {
+            var mapped = mapLegacyType(typeName);
+            if (mapped != null) {
+                typeName = mapped;
+                properties.type = typeName;
+            }
+        }
+
+        if (!DonationAlertsIntegrate.knownEntity(typeName))
+            throw new JsonParseException("Does not contains '" + typeName + "' properties descriptor");
+
+        if (properties.value instanceof String) {
+            var legacyValue = (String) properties.value;
+            var map = new LinkedHashMap<String, Object>();
+            if (typeName.endsWith("/handler/message"))
+                map.put("message", legacyValue);
+            else if (typeName.endsWith("/handler/command"))
+                map.put("command", legacyValue);
+            properties.value = map;
+        }
+
+        var map = (LinkedHashMap<String, Object>)properties.value;
+        var type = DonationAlertsIntegrate.getProperties(typeName).getType();
+        var json = gson.toJson(map);
+        properties.value = gson.fromJson(json, type);
+    }
+
+    private static String mapLegacyType(String typeName) {
+        switch (typeName) {
+            case "donate":        return Constants.ModId + "/sensitive/donate";
+            case "always":        return Constants.ModId + "/sensitive/always";
+            case "subscribe":     return Constants.ModId + "/sensitive/subscribe";
+            case "twitch/bits":
+            case "twitch:bits":   return Constants.ModId + "/sensitive/twitch/bits";
+            case "twitch/points":
+            case "twitch:points": return Constants.ModId + "/sensitive/twitch/points";
+            case "message":       return Constants.ModId + "/handler/message";
+            case "command":       return Constants.ModId + "/handler/command";
+        }
+        return null;
+    }
+}

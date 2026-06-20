@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group 'net.folleach.testconsole'
+group 'net.bummy1337.testconsole'
 version 'unspecified'
 
 repositories {

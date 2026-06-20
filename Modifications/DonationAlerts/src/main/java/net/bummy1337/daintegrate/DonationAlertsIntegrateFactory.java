@@ -1,0 +1,41 @@
+package net.bummy1337.daintegrate;
+
+import net.bummy1337.daintegrate.configurations.SettingsDto;
+import net.bummy1337.daintegrate.configurations.YamlSettingsTransformer;
+import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
+import net.bummy1337.daintegrate.listeners.IListener;
+import net.bummy1337.daintegrate.sensitives.*;
+
+import java.io.IOException;
+import java.util.ArrayList;
+
+public class DonationAlertsIntegrateFactory {
+    public static FileConfigurationSource create(String settingsPath, String settingsFile, IListener<String> log) throws IOException {
+        log.onValue("Initialize");
+        var instance = DonationAlertsIntegrate.Instance;
+
+        DonationAlertsIntegrate
+                .configure(Constants.ModId, Constants.ModUrl)
+//                .registerHandler(new MessageHandler())
+//                .registerHandler(new CommandHandler())
+                .registerSensitive(new DonateSensitive())
+                .registerSensitive(new AlwaysSensitive())
+                .registerSensitive(new SubscribeSensitive())
+                .registerSensitive(new TwitchBitsSensitive())
+                .registerSensitive(new TwitchPointsSensitive())
+                .registerEventListener(event -> log.onValue("received new event"));
+
+        var configurationListeners = new ArrayList<IListener<SettingsDto>>();
+        configurationListeners.add(configuration -> instance.updateTriggers(configuration.triggers));
+        configurationListeners.add(configuration -> instance.setSkipTestDonation(configuration.skipTestDonation));
+        configurationListeners.add(configuration -> log.onValue("update config with " + (configuration.triggers == null ? 0 : configuration.triggers.length) + " triggers"));
+        var configurationSource = new FileConfigurationSource(
+                settingsPath,
+                settingsFile,
+                configurationListeners,
+                new YamlSettingsTransformer(),
+                log
+        );
+        return configurationSource;
+    }
+}
