@@ -1,5 +1,5 @@
 # DonationAlerts Integration
-
+## Minecraft version: 26.1.2
 A modification that allows you to receive events from **DonationAlerts** and interact with your chat and Minecraft server.
 
 
