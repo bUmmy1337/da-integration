@@ -10,6 +10,7 @@ import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
 import net.bummy1337.daintegrate.fabric.gui.CustomButton;
 import net.bummy1337.daintegrate.fabric.gui.CustomTextBox;
 import net.bummy1337.daintegrate.fabric.gui.DonationTypeEntry;
+import net.bummy1337.daintegrate.fabric.gui.FontHelper;
 import net.bummy1337.daintegrate.fabric.gui.ScrollPanel;
 import net.bummy1337.daintegrate.fabric.gui.Theme;
 import net.bummy1337.daintegrate.fabric.gui.clickgui.impl.DragHandler;
@@ -119,6 +120,7 @@ public class ClickGui extends Screen {
         startAnimation(true);
         hintAlphaAnimation = 0f;
         lastHintUpdateTime = System.currentTimeMillis();
+        FontHelper.setFontAvailable(false);
         RenderHelper.setFont(Minecraft.getInstance().font);
 
         Minecraft mc = Minecraft.getInstance();
@@ -427,6 +429,7 @@ public class ClickGui extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+        FontHelper.setFontAvailable(false);
         updateOpenAnimation();
 
         Minecraft mc = Minecraft.getInstance();
