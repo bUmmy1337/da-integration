@@ -3,18 +3,22 @@ package net.bummy1337.daintegrate.fabric.gui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.AbstractButton;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.input.InputWithModifiers;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-public class CustomButton extends AbstractButton {
-    public int DefaultBackgroundColor = 0x30000000;
-    public int DefaultForegroundColor = 0xFFFFFFFF;
-    public int HoveredBackgroundColor = 0x60000000;
-    public int HoveredForegroundColor = 0xFFF59907;
+public class CustomButton extends AbstractWidget {
+    public int DefaultBackgroundColor = Theme.BG_ENTRY;
+    public int HoveredBackgroundColor = Theme.BG_ENTRY_HOVER;
+    public int DefaultForegroundColor = Theme.TEXT_PRIMARY;
+    public int HoveredForegroundColor = Theme.TEXT_PRIMARY;
     public int DisableBackgroundColor = DefaultBackgroundColor;
-    public int DisableForegroundColor = 0xFFA0A0A0;
+    public int DisableForegroundColor = Theme.TEXT_MUTED;
+    public int OutlineColor = Theme.BORDER;
+    public int OutlineHoverColor = Theme.BORDER_HOVER;
+    public boolean UseGradient = false;
+    public boolean ShowOutline = true;
     protected final Runnable onClick;
 
     public CustomButton(int x, int y, int width, boolean visibility, String text, Runnable onClick) {
@@ -39,30 +43,55 @@ public class CustomButton extends AbstractButton {
     }
 
     @Override
-    public void onPress(InputWithModifiers modifiers) {
-        if (onClick != null) {
-            onClick.run();
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (this.active && this.visible && event.input() == 0) {
+            if (event.x() >= this.getX() && event.y() >= this.getY()
+                    && event.x() < this.getX() + this.width && event.y() < this.getY() + this.height) {
+                playButtonClickSound(Minecraft.getInstance().getSoundManager());
+                if (onClick != null)
+                    onClick.run();
+                return true;
+            }
         }
+        return false;
     }
 
     @Override
-    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        renderContents(graphics, mouseX, mouseY, delta);
+    }
+
+    private void renderContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
         if (this.visible) {
             Font fontrenderer = Minecraft.getInstance().font;
             this.isHovered = mouseX >= this.getX() && mouseY >= this.getY() && mouseX < this.getX() + this.width && mouseY < this.getY() + this.height;
             int colorBg = DefaultBackgroundColor;
             int colorFg = DefaultForegroundColor;
+            int colorOutline = OutlineColor;
             if (!this.active) {
                 colorBg = DisableBackgroundColor;
                 colorFg = DisableForegroundColor;
+                colorOutline = Theme.BORDER;
             } else if (this.isHovered) {
                 colorBg = HoveredBackgroundColor;
                 colorFg = HoveredForegroundColor;
+                colorOutline = OutlineHoverColor;
             }
-            graphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, colorBg);
+            if (UseGradient) {
+                graphics.fillGradient(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, colorBg, Theme.BG_MAIN);
+            } else {
+                graphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, colorBg);
+            }
+            if (ShowOutline) {
+                graphics.outline(this.getX(), this.getY(), this.width, this.height, colorOutline);
+            }
             Component message = this.getMessage();
-            int textWidth = fontrenderer.width(message);
-            graphics.text(fontrenderer, message, this.getX() + (this.width - textWidth) / 2, this.getY() + (this.height - 8) / 2, colorFg, false);
+            String textStr = message.getString();
+            int textWidth = FontHelper.width(fontrenderer, textStr);
+            graphics.text(fontrenderer, FontHelper.comp(textStr),
+                    this.getX() + (this.width - textWidth) / 2,
+                    this.getY() + (this.height - 8) / 2,
+                    colorFg, false);
         }
     }
 

@@ -44,6 +44,8 @@ public enum AlertType {
                 return AlertType.TwitchGiftSubscription;
             case 15:
                 return AlertType.TwitchPrimeSubscription;
+            case 19:
+                return AlertType.TwitchPoints;
             default:
                 return AlertType.Undefined;
         }

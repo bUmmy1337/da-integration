@@ -42,7 +42,7 @@ public class CustomTextBox extends AbstractWidget {
     private int cursorPos;
     private int highlightPos;
     private int textColor = DEFAULT_TEXT_COLOR;
-    private int textColorUneditable = 0xFF707070;
+    private int textColorUneditable = 0xFF72767D;
     @Nullable
     private String suggestion;
     @Nullable
@@ -361,29 +361,31 @@ public class CustomTextBox extends AbstractWidget {
 
     public void renderButton(GuiGraphicsExtractor graphics) {
         if (this.isVisible()) {
-            if (this.isBordered()) {
-                int i = LineColor;
-                graphics.fill(this.getX() - 1, this.getY() - 1, this.getX() + this.width + 1, this.getY() + this.height + 1, i);
-                graphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, -16777216);
+            boolean focused = this.isFocused();
+            int bgColor = focused ? Theme.BG_INPUT_FOCUS : Theme.BG_INPUT;
+            int borderColor = focused ? Theme.BORDER_FOCUS : Theme.BORDER;
+            graphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, bgColor);
+            graphics.outline(this.getX(), this.getY(), this.width, this.height, borderColor);
+
+            if (tag != null && !tag.isEmpty()) {
+                graphics.text(font, FontHelper.comp(tag), getX(), getY() - 10, Theme.TEXT_MUTED, false);
             }
-            graphics.text(font, tag, getX(), getY() - 10, Palette.WHITE, false);
             int i2 = this.isEditable ? this.textColor : this.textColorUneditable;
             int j = this.cursorPos - this.displayPos;
             int k = this.highlightPos - this.displayPos;
             String s = this.font.plainSubstrByWidth(this.value.substring(this.displayPos), this.getInnerWidth());
             boolean flag = j >= 0 && j <= s.length();
-            boolean flag1 = this.isFocused() && this.frame / 6 % 2 == 0 && flag;
-            int l = this.bordered ? this.getX() + 4 : this.getX();
-            int i1 = this.bordered ? this.getY() + (this.height - 8) / 2 : this.getY();
+            boolean flag1 = focused && this.frame / 6 % 2 == 0 && flag;
+            int l = this.getX() + 4;
+            int i1 = this.getY() + (this.height - 8) / 2;
             int j1 = l;
             if (k > s.length()) {
                 k = s.length();
             }
             if (!s.isEmpty()) {
                 String s1 = flag ? s.substring(0, j) : s;
-                var formatted = this.formatter.apply(s1, this.displayPos);
-                graphics.text(font, formatted, l, i1, i2, true);
-                j1 = l + font.width(formatted);
+                graphics.text(font, FontHelper.comp(s1), l, i1, i2, false);
+                j1 = l + FontHelper.width(font, s1);
             }
             boolean flag2 = this.cursorPos < this.value.length() || this.value.length() >= this.getMaxLength();
             int k1 = j1;
@@ -394,21 +396,17 @@ public class CustomTextBox extends AbstractWidget {
                 --j1;
             }
             if (!s.isEmpty() && flag && j < s.length()) {
-                var formatted = this.formatter.apply(s.substring(j), this.cursorPos);
-                graphics.text(font, formatted, j1, i1, i2, true);
+                String s2 = s.substring(j);
+                graphics.text(font, FontHelper.comp(s2), j1, i1, i2, false);
             }
-            if (!flag2 && this.suggestion != null) {
-                graphics.text(font, this.suggestion, k1 - 1, i1, -8355712, true);
+            if (this.value.isEmpty() && this.suggestion != null) {
+                graphics.text(font, FontHelper.comp(this.suggestion), l, i1, Theme.TEXT_MUTED, false);
             }
             if (flag1) {
-                if (flag2) {
-                    graphics.fill(k1, i1 - 1, k1 + 1, i1 + 1 + 9, CURSOR_INSERT_COLOR);
-                } else {
-                    graphics.text(font, "_", k1, i1, i2, true);
-                }
+                graphics.fill(k1, i1 - 1, k1 + 1, i1 + 1 + 9, Theme.ACCENT);
             }
             if (k != j) {
-                int l1 = l + this.font.width(s.substring(0, k));
+                int l1 = l + FontHelper.width(font, s.substring(0, k));
                 this.renderHighlight(graphics, k1, i1 - 1, l1 - 1, i1 + 1 + 9);
             }
         }

@@ -11,6 +11,9 @@ import net.bummy1337.daintegrate.fabric.gui.*;
 import net.bummy1337.daintegrate.handlers.CommandHandlerProperties;
 import net.bummy1337.daintegrate.handlers.MessageHandlerProperties;
 import net.bummy1337.daintegrate.sensitives.DonateSensitiveProperties;
+import net.bummy1337.daintegrate.sensitives.SubscribeSensitiveProperties;
+import net.bummy1337.daintegrate.sensitives.TwitchBitsSensitiveProperties;
+import net.bummy1337.daintegrate.sensitives.TwitchPointsSensitiveProperties;
 import net.bummy1337.dontaionalerts.DonationAlertsClient;
 import net.bummy1337.dontaionalerts.ReadOnlyDonationAlertsEvent;
 import net.minecraft.client.Minecraft;
@@ -30,47 +33,47 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainScreen extends Screen {
-    enum PanelsType { Messages, Status, Types, Settings, Help }
-
-    private static final int SPACE_LEFTBUTTON = 20;
-    private static final int TOKENPANELY = 60;
-
-    private static List<String> langHelpLines;
+    enum Tab { Dashboard, Triggers, Connection, Settings }
+    enum TriggerSubTab { Donate, Subscribe, Twitch }
 
     private Minecraft mc;
     private Font fontRenderer;
     private FileConfigurationSource configurationSource;
     private DonationAlertsClient client;
-    private PanelsType activePanel;
     private SettingsDto currentSettings;
-
     private List<ReadOnlyDonationAlertsEvent> donations;
 
-    private CustomButton LEFTBUTTON_Messages;
-    private CustomButton LEFTBUTTON_Status;
-    private CustomButton LEFTBUTTON_Types;
-    private CustomButton LEFTBUTTON_Settings;
-    private CustomButton LEFTBUTTON_Help;
-    private CustomButton LEFTBUTTON_SupportAuthor;
+    private int winX, winY, winW, winH;
 
-    private DefaultButton STATUSBUTTON_Save;
-    private DefaultButton STATUSBUTTON_Delete;
-    private DefaultButton STATUSBUTTON_ConnectionController;
+    private Tab activeTab;
+    private TriggerSubTab activeSubTab;
 
-    private DefaultButton TYPESBUTTON_Save;
-    private CustomButton TYPESBUTTON_Add;
+    private CustomButton tabDashboard, tabTriggers, tabConnection, tabSettings;
+    private CustomButton subDonate, subSubscribe, subTwitch;
+    private CustomButton btnClose;
+    private CustomButton btnHelp;
+    private CustomButton btnExport, btnImport;
 
-    private CheckBox SETTINGSBUTTON_SkippingTestDonation;
-    private DefaultButton SETTINGSBUTTON_Save;
+    private DefaultButton btnSave;
+    private CustomButton btnAdd;
+    private CustomButton btnConnect;
+    private CustomButton btnTokenSave, btnTokenDelete;
 
-    private CustomTextBox text1;
+    private CheckBox chkSkipTest;
+    private CustomTextBox txtToken;
+    private CustomTextBox txtSearch;
 
     private ScrollPanel<MessageEntry> messagesPanel;
-    private ScrollPanel<DonationTypeEntry> typesPanel;
+    private ScrollPanel<DonationTypeEntry> donatePanel;
+    private ScrollPanel<DonationTypeEntry> subscribePanel;
+    private ScrollPanel<DonationTypeEntry> twitchPanel;
 
-    private boolean typesSuccessfulSave;
-    private int typesSaveTimer;
+    private boolean saveSuccess;
+    private int saveTimer;
     private boolean initialized;
+
+    private String pendingDeleteName;
+    private boolean showConfirmDelete;
 
     public MainScreen(FileConfigurationSource configurationSource, DonationAlertsClient client, List<ReadOnlyDonationAlertsEvent> donations) {
         super(Component.literal("MainWindow"));
@@ -82,222 +85,434 @@ public class MainScreen extends Screen {
         this.currentSettings = configurationSource.getCurrent();
         if (this.currentSettings == null)
             this.currentSettings = new SettingsDto();
+        FontHelper.setFontAvailable(true);
     }
 
     @Override
     protected void init() {
         initialized = false;
-        LEFTBUTTON_Messages = addRenderableWidget(new CustomButton(0, 20, 120, 20, "Messages", this::switchPanel_Messages));
-        LEFTBUTTON_Status = addRenderableWidget(new CustomButton(0, 20 + SPACE_LEFTBUTTON, 120, 20, "Status", this::switchPanel_Status));
-        LEFTBUTTON_Types = addRenderableWidget(new CustomButton(0, 20 + (2 * SPACE_LEFTBUTTON), 120, 20, "Types", this::switchPanel_Types));
-        LEFTBUTTON_Settings = addRenderableWidget(new CustomButton(0, 20 + (3 * SPACE_LEFTBUTTON), 120, 20, "Settings", this::switchPanel_Settings));
-        LEFTBUTTON_Help = addRenderableWidget(new CustomButton(0, 20 + (4 * SPACE_LEFTBUTTON), 120, 20, "Help", this::switchPanel_Help));
-        LEFTBUTTON_SupportAuthor = addRenderableWidget(new DefaultButton(0, height - 20, 120, 20, "Support Author", this::switchPanel_SupportAuthor));
-        SETTINGSBUTTON_SkippingTestDonation = addRenderableWidget(new CheckBox(125, 25, 170, activePanel == PanelsType.Settings, "Skip Test Donation", currentSettings != null && currentSettings.skipTestDonation, this::settingsSkipTestDonationClick));
-        SETTINGSBUTTON_Save = addRenderableWidget(new DefaultButton(this.width - 80, 0, 80, activePanel == PanelsType.Settings, "Save", this::settingsSaveClick));
-        STATUSBUTTON_Save = addRenderableWidget(new DefaultButton(125, TOKENPANELY + 45, 120, activePanel == PanelsType.Status, "Save", this::statusSaveClick));
-        STATUSBUTTON_Delete = addRenderableWidget(new DefaultButton(250, TOKENPANELY + 45, 120, activePanel == PanelsType.Status, "Delete", this::statusDeleteClick));
-        STATUSBUTTON_ConnectionController = addRenderableWidget(new DefaultButton(125, 35, 120, activePanel == PanelsType.Status,
+
+        winW = Math.min(this.width - 20, 640);
+        winH = Math.min(this.height - 20, 460);
+        winX = (this.width - winW) / 2;
+        winY = (this.height - winH) / 2;
+
+        int contentX = winX + Theme.PADDING;
+        int contentW = winW - Theme.PADDING * 2;
+        int titleY = winY + 4;
+        int tabY = winY + Theme.TITLE_BAR_H;
+        int contentY = tabY + Theme.TAB_BAR_H;
+        int contentBottom = winY + winH - Theme.STATUS_BAR_H;
+        int contentH = contentBottom - contentY;
+
+        int closeSize = 18;
+        btnClose = addWidget(new CustomButton(winX + winW - closeSize - 6, titleY + 3, closeSize, closeSize, "x", this::doClose));
+        btnClose.DefaultBackgroundColor = 0x00000000;
+        btnClose.HoveredBackgroundColor = Theme.RED;
+        btnClose.HoveredForegroundColor = Theme.WHITE;
+        btnClose.OutlineColor = 0x00000000;
+        btnClose.OutlineHoverColor = 0x00000000;
+
+        btnHelp = addWidget(new CustomButton(winX + winW - closeSize * 2 - 10, titleY + 3, closeSize, closeSize, "?", this::doHelp));
+        btnHelp.DefaultBackgroundColor = 0x00000000;
+        btnHelp.HoveredBackgroundColor = Theme.BG_ENTRY_HOVER;
+        btnHelp.HoveredForegroundColor = Theme.TEXT_ACCENT;
+        btnHelp.OutlineColor = 0x00000000;
+        btnHelp.OutlineHoverColor = 0x00000000;
+
+        btnExport = addWidget(new CustomButton(winX + winW - closeSize * 3 - 14, titleY + 3, closeSize, closeSize, "^", this::doExport));
+        btnExport.DefaultBackgroundColor = 0x00000000;
+        btnExport.HoveredBackgroundColor = Theme.BG_ENTRY_HOVER;
+        btnExport.HoveredForegroundColor = Theme.GREEN;
+        btnExport.OutlineColor = 0x00000000;
+        btnExport.OutlineHoverColor = 0x00000000;
+
+        btnImport = addWidget(new CustomButton(winX + winW - closeSize * 4 - 18, titleY + 3, closeSize, closeSize, "v", this::doImport));
+        btnImport.DefaultBackgroundColor = 0x00000000;
+        btnImport.HoveredBackgroundColor = Theme.BG_ENTRY_HOVER;
+        btnImport.HoveredForegroundColor = Theme.ACCENT;
+        btnImport.OutlineColor = 0x00000000;
+        btnImport.OutlineHoverColor = 0x00000000;
+
+        int tabW = 85;
+        int tabSpacing = 4;
+        int tabStartX = contentX;
+        tabDashboard = addWidget(new CustomButton(tabStartX, tabY + 3, tabW, 20, "Dashboard", () -> switchTab(Tab.Dashboard)));
+        tabTriggers = addWidget(new CustomButton(tabStartX + (tabW + tabSpacing), tabY + 3, tabW, 20, "Triggers", () -> switchTab(Tab.Triggers)));
+        tabConnection = addWidget(new CustomButton(tabStartX + (tabW + tabSpacing) * 2, tabY + 3, tabW, 20, "Connection", () -> switchTab(Tab.Connection)));
+        tabSettings = addWidget(new CustomButton(tabStartX + (tabW + tabSpacing) * 3, tabY + 3, tabW, 20, "Settings", () -> switchTab(Tab.Settings)));
+        for (var tb : new CustomButton[]{tabDashboard, tabTriggers, tabConnection, tabSettings}) {
+            tb.ShowOutline = false;
+            tb.DefaultBackgroundColor = 0x00000000;
+            tb.HoveredBackgroundColor = Theme.BG_PANEL_HOVER;
+            tb.DefaultForegroundColor = Theme.TEXT_SECONDARY;
+            tb.HoveredForegroundColor = Theme.TEXT_PRIMARY;
+        }
+
+        int subTabW = 70;
+        int subTabY = contentY + 2;
+        subDonate = addWidget(new CustomButton(contentX, subTabY, subTabW, 18, "Donate", () -> switchSubTab(TriggerSubTab.Donate)));
+        subSubscribe = addWidget(new CustomButton(contentX + subTabW + 4, subTabY, subTabW + 10, 18, "Subscribe", () -> switchSubTab(TriggerSubTab.Subscribe)));
+        subTwitch = addWidget(new CustomButton(contentX + (subTabW + 4) * 2 + 10, subTabY, subTabW, 18, "Twitch", () -> switchSubTab(TriggerSubTab.Twitch)));
+        for (var sb : new CustomButton[]{subDonate, subSubscribe, subTwitch}) {
+            sb.ShowOutline = false;
+            sb.DefaultBackgroundColor = Theme.BG_ENTRY;
+            sb.HoveredBackgroundColor = Theme.BG_ENTRY_HOVER;
+            sb.DefaultForegroundColor = Theme.TEXT_SECONDARY;
+            sb.HoveredForegroundColor = Theme.TEXT_PRIMARY;
+        }
+
+        txtSearch = new CustomTextBox(fontRenderer, contentX + winW - 220 - Theme.PADDING * 2, subTabY, 180, 18, "");
+        txtSearch.tag = null;
+        txtSearch.setSuggestion("Search...");
+
+        int saveBtnW = 60;
+        btnSave = addWidget(new DefaultButton(winX + winW - saveBtnW - Theme.PADDING, tabY + 3, saveBtnW, 20, "Save", this::typesSaveClick));
+        btnAdd = addWidget(new CustomButton(winX + winW - saveBtnW - Theme.PADDING - 24, tabY + 3, 20, 20, "+", this::typesAddClick));
+        btnAdd.DefaultBackgroundColor = Theme.GREEN;
+        btnAdd.HoveredBackgroundColor = Theme.GREEN_TRANSPARENT;
+        btnAdd.HoveredForegroundColor = Theme.WHITE;
+        btnAdd.OutlineColor = Theme.GREEN;
+
+        int panelY = contentY + 26;
+        int panelH = contentBottom - panelY;
+
+        messagesPanel = new ScrollPanel<>(contentX, panelY, contentX + contentW, panelY + panelH);
+        donatePanel = new ScrollPanel<>(contentX, panelY, contentX + contentW, panelY + panelH);
+        subscribePanel = new ScrollPanel<>(contentX, panelY, contentX + contentW, panelY + panelH);
+        twitchPanel = new ScrollPanel<>(contentX, panelY, contentX + contentW, panelY + panelH);
+
+        for (int i = donations.size() - 1; i >= 0; i--) {
+            var d = donations.get(i);
+            messagesPanel.addEntry(new MessageEntry(fontRenderer, d.getUserName(), String.valueOf(d.getAmount()), d.getCurrency(), d.getMessage(), contentW - 16));
+        }
+
+        if (currentSettings != null && currentSettings.triggers != null) {
+            for (var trigger : currentSettings.triggers) {
+                var kind = DonationTypeEntry.detectKind(trigger);
+                switch (kind) {
+                    case Subscribe -> subscribePanel.addEntry(new DonationTypeEntry(subscribePanel, trigger, mc, contentX + contentW, DonationTypeEntry.TriggerKind.Subscribe));
+                    case Twitch -> twitchPanel.addEntry(new DonationTypeEntry(twitchPanel, trigger, mc, contentX + contentW, DonationTypeEntry.TriggerKind.Twitch));
+                    default -> donatePanel.addEntry(new DonationTypeEntry(donatePanel, trigger, mc, contentX + contentW, DonationTypeEntry.TriggerKind.Donate));
+                }
+            }
+        }
+
+        txtToken = new CustomTextBox(fontRenderer, contentX, panelY + 40, 300, 20, "");
+        txtToken.tag = "Token";
+        txtToken.setTextColor(Theme.TEXT_PRIMARY);
+
+        btnConnect = addWidget(new DefaultButton(contentX, panelY, 120, 20,
                 client.getConnected() ? "Disconnect" : "Connect", this::connectionControllerClick));
-        TYPESBUTTON_Save = addRenderableWidget(new DefaultButton(this.width - 80, 0, 80, activePanel == PanelsType.Types, "Save", this::typesSaveClick));
-        TYPESBUTTON_Add = addRenderableWidget(new CustomButton(this.width - 100, 0, 20, activePanel == PanelsType.Types, "+", this::typesAddClick));
-        TYPESBUTTON_Add.DefaultBackgroundColor = Palette.GREEN;
-        TYPESBUTTON_Add.HoveredBackgroundColor = Palette.GREEN_HOVERED;
-        TYPESBUTTON_Add.HoveredForegroundColor = Palette.WHITE;
-        LEFTBUTTON_SupportAuthor.DefaultBackgroundColor = Palette.BLACK_TRANSPARENT30;
+        btnTokenSave = addWidget(new DefaultButton(contentX, panelY + 70, 100, 20, "Save Token", this::statusSaveClick));
+        btnTokenDelete = addWidget(new DefaultButton(contentX + 110, panelY + 70, 100, 20, "Delete Token", this::statusDeleteClick));
 
-        text1 = new CustomTextBox(fontRenderer, 125, TOKENPANELY + 10, 200, 20, "");
-        text1.setTextColor(Palette.WHITE);
-        text1.tag = "Token:";
+        chkSkipTest = addWidget(new CheckBox(contentX, panelY, 200, true, "Skip Test Donation", currentSettings != null && currentSettings.skipTestDonation, this::settingsSkipTestDonationClick));
 
-        initializeMessages();
-        initializeTypes();
-
-        if (activePanel == null)
-            this.SetActivePanel(PanelsType.Messages);
+        if (activeTab == null)
+            activeTab = Tab.Dashboard;
+        if (activeSubTab == null)
+            activeSubTab = TriggerSubTab.Donate;
+        updateVisibility();
         initialized = true;
     }
 
-    private void initializeMessages() {
-        messagesPanel = new ScrollPanel<MessageEntry>(125, 25, this.width, this.height);
-        for (int i = donations.size() - 1; i >= 0; i--) {
-            var d = donations.get(i);
-            messagesPanel.addEntry(new MessageEntry(fontRenderer, d.getUserName(), String.valueOf(d.getAmount()), d.getCurrency(), d.getMessage(), this.width - 130));
-        }
-    }
+    private void updateVisibility() {
+        boolean isTriggers = activeTab == Tab.Triggers;
+        boolean isConnection = activeTab == Tab.Connection;
+        boolean isSettings = activeTab == Tab.Settings;
 
-    private void initializeTypes() {
-        typesPanel = new ScrollPanel<DonationTypeEntry>(125, 25, this.width, this.height);
-        if (currentSettings != null && currentSettings.triggers != null) {
-            for (int i = 0; i < currentSettings.triggers.length; i++)
-                typesPanel.addEntry(new DonationTypeEntry(typesPanel, currentSettings.triggers[i], mc, this.width));
+        for (var tb : new CustomButton[]{tabDashboard, tabTriggers, tabConnection, tabSettings}) {
+            tb.DefaultForegroundColor = Theme.TEXT_SECONDARY;
         }
-    }
+        switch (activeTab) {
+            case Dashboard -> tabDashboard.DefaultForegroundColor = Theme.WHITE;
+            case Triggers -> tabTriggers.DefaultForegroundColor = Theme.WHITE;
+            case Connection -> tabConnection.DefaultForegroundColor = Theme.WHITE;
+            case Settings -> tabSettings.DefaultForegroundColor = Theme.WHITE;
+        }
 
-    private void initializeLangHelpLines() {
-        langHelpLines = new ArrayList<>();
-        langHelpLines.add("=== Help ===");
-        langHelpLines.add("{message} - Donation message");
-        langHelpLines.add("{amount} - Donation amount");
-        langHelpLines.add("{currency} - Donation currency");
-        langHelpLines.add("{username} - Donator username");
-        langHelpLines.add("{playername} - Minecraft player name");
+        for (var sb : new CustomButton[]{subDonate, subSubscribe, subTwitch}) {
+            sb.DefaultBackgroundColor = Theme.BG_ENTRY;
+            sb.DefaultForegroundColor = Theme.TEXT_SECONDARY;
+        }
+        switch (activeSubTab) {
+            case Donate -> { subDonate.DefaultBackgroundColor = Theme.ACCENT; subDonate.DefaultForegroundColor = Theme.WHITE; }
+            case Subscribe -> { subSubscribe.DefaultBackgroundColor = Theme.ACCENT; subSubscribe.DefaultForegroundColor = Theme.WHITE; }
+            case Twitch -> { subTwitch.DefaultBackgroundColor = Theme.ACCENT; subTwitch.DefaultForegroundColor = Theme.WHITE; }
+        }
+
+        messagesPanel.visible = activeTab == Tab.Dashboard;
+        donatePanel.visible = isTriggers && activeSubTab == TriggerSubTab.Donate;
+        subscribePanel.visible = isTriggers && activeSubTab == TriggerSubTab.Subscribe;
+        twitchPanel.visible = isTriggers && activeSubTab == TriggerSubTab.Twitch;
+
+        subDonate.visible = subSubscribe.visible = subTwitch.visible = isTriggers;
+        txtSearch.setVisible(isTriggers);
+        btnSave.visible = isTriggers;
+        btnAdd.visible = isTriggers;
+
+        btnConnect.visible = isConnection;
+        txtToken.setVisible(isConnection);
+        btnTokenSave.visible = isConnection;
+        btnTokenDelete.visible = isConnection;
+
+        chkSkipTest.visible = isSettings;
     }
 
     @Override
     public void tick() {
-        if (typesSaveTimer > 0)
-            typesSaveTimer--;
+        if (saveTimer > 0) saveTimer--;
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        if (!initialized)
-            return;
+        if (!initialized) return;
 
-        graphics.fill(0, 0, this.width, this.height, 0xEE1A1A1E);
+        graphics.fill(0, 0, this.width, this.height, 0xB0000000);
 
-        if (activePanel == null)
-            activePanel = PanelsType.Messages;
+        graphics.fill(winX, winY, winX + winW, winY + winH, Theme.BG_MAIN);
+        graphics.outline(winX, winY, winW, winH, Theme.BORDER_FOCUS);
 
-        switch (activePanel) {
-            case Messages:
-                messagesPanel.drawPanel(graphics, mouseX, mouseY, delta);
-                break;
-            case Status:
-                boolean connected = client.getConnected();
-                graphics.text(fontRenderer, "Connection status:", 125, 25, Palette.WHITE, false);
-                graphics.text(fontRenderer, connected ? "Connected." : "Disconnected.", 125 + fontRenderer.width("Connection status:") + 5, 25,
-                        connected ? Palette.GREEN : Palette.RED, false);
+        graphics.fill(winX, winY, winX + winW, winY + Theme.TITLE_BAR_H, Theme.BG_PANEL);
+        graphics.horizontalLine(winX, winX + winW, winY + Theme.TITLE_BAR_H, Theme.BORDER);
 
-                text1.renderButton(graphics);
-                boolean tokenExists = new java.io.File(System.getProperty("user.home"), Constants.TokenFileName).exists();
-                graphics.text(fontRenderer, tokenExists ? "Token exists." : "Token absent.", 125, TOKENPANELY + 35,
-                        tokenExists ? Palette.GREEN : Palette.RED, false);
-                break;
-            case Types:
-                typesPanel.drawPanel(graphics, mouseX, mouseY, delta);
-                if (typesSuccessfulSave && typesSaveTimer > 0)
-                    graphics.text(fontRenderer, "Saved", width - fontRenderer.width("Saved") - 100, 6, Palette.WHITE, false);
-                else if (!typesSuccessfulSave && typesSaveTimer > 0)
-                    graphics.text(fontRenderer, "Error", width - fontRenderer.width("Error") - 100, 6, Palette.RED, false);
-                break;
-            case Settings:
-                SETTINGSBUTTON_SkippingTestDonation.drawButton(graphics, mouseX, mouseY, delta);
-                graphics.text(fontRenderer, "Donation Alerts Integrate", 125, 5, Palette.WHITE, false);
-                break;
-            case Help:
-                if (langHelpLines == null) initializeLangHelpLines();
-                for (int i = 0; i < langHelpLines.size(); i++)
-                    graphics.text(fontRenderer, langHelpLines.get(i), 125, i * 10 + 25, Palette.WHITE, false);
-                break;
+        graphics.text(fontRenderer, FontHelper.comp("DA INTEGRATE"),
+                winX + Theme.PADDING + 2, winY + 8, Theme.TEXT_ACCENT, false);
+        graphics.text(fontRenderer, FontHelper.comp("v" + getVersionSuffix()),
+                winX + Theme.PADDING + 2 + FontHelper.width(fontRenderer, "DA INTEGRATE") + 6,
+                winY + 8, Theme.TEXT_MUTED, false);
+
+        graphics.fill(winX, winY + winH - Theme.STATUS_BAR_H, winX + winW, winY + winH, Theme.BG_PANEL);
+        graphics.horizontalLine(winX, winX + winW, winY + winH - Theme.STATUS_BAR_H, Theme.BORDER);
+
+        int statusY = winY + winH - Theme.STATUS_BAR_H + 7;
+        int statusX = winX + Theme.PADDING;
+        boolean connected = client.getConnected();
+        Theme.drawStatusDot(graphics, statusX, statusY - 1, connected ? Theme.GREEN : Theme.RED);
+        graphics.text(fontRenderer, FontHelper.comp(connected ? "Connected" : "Disconnected"),
+                statusX + 12, statusY, connected ? Theme.GREEN : Theme.RED, false);
+
+        int triggerCount = getTriggerCount();
+        String countText = triggerCount + " trigger" + (triggerCount != 1 ? "s" : "");
+        graphics.text(fontRenderer, FontHelper.comp(countText),
+                statusX + 120, statusY, Theme.TEXT_MUTED, false);
+
+        if (!donations.isEmpty()) {
+            var last = donations.get(donations.size() - 1);
+            String lastText = "Last: " + last.getUserName() + " - " + last.getAmount() + " " + last.getCurrency();
+            int lastW = FontHelper.width(fontRenderer, lastText);
+            graphics.text(fontRenderer, FontHelper.comp(lastText),
+                    winX + winW - lastW - Theme.PADDING, statusY, Theme.TEXT_SECONDARY, false);
         }
 
-        graphics.fill(0, 0, this.width, 20, 0x65000000);
-        graphics.fill(0, 20, 120, this.height, 0x50000000);
-        graphics.text(fontRenderer, "Donation Alerts Integrate", 5, 5, Palette.WHITE, false);
+        switch (activeTab) {
+            case Dashboard -> {
+                if (donations.isEmpty()) {
+                    graphics.text(fontRenderer, FontHelper.comp("No events yet. Connect to start receiving!"),
+                            winX + winW / 2 - FontHelper.width(fontRenderer, "No events yet. Connect to start receiving!") / 2,
+                            winY + winH / 2, Theme.TEXT_MUTED, false);
+                } else {
+                    messagesPanel.drawPanel(graphics, mouseX, mouseY, delta);
+                }
+            }
+            case Triggers -> {
+                txtSearch.renderButton(graphics);
+                switch (activeSubTab) {
+                    case Donate -> donatePanel.drawPanel(graphics, mouseX, mouseY, delta);
+                    case Subscribe -> subscribePanel.drawPanel(graphics, mouseX, mouseY, delta);
+                    case Twitch -> twitchPanel.drawPanel(graphics, mouseX, mouseY, delta);
+                }
+                if (saveTimer > 0) {
+                    String msg = saveSuccess ? "Saved!" : "Error!";
+                    int color = saveSuccess ? Theme.GREEN : Theme.RED;
+                    graphics.text(fontRenderer, FontHelper.comp(msg),
+                            winX + winW - FontHelper.width(fontRenderer, msg) - 90,
+                            winY + 9, color, false);
+                }
+            }
+            case Connection -> {
+                boolean tokenExists = new java.io.File(System.getProperty("user.home"), Constants.TokenFileName).exists();
+                graphics.text(fontRenderer, FontHelper.comp(tokenExists ? "Token file exists" : "Token file not found"),
+                        contentX(), winY + Theme.TITLE_BAR_H + Theme.TAB_BAR_H + 10,
+                        tokenExists ? Theme.GREEN : Theme.YELLOW, false);
+                txtToken.renderButton(graphics);
+            }
+            case Settings -> {
+                graphics.text(fontRenderer, FontHelper.comp("Configuration"),
+                        contentX(), winY + Theme.TITLE_BAR_H + Theme.TAB_BAR_H + 5, Theme.TEXT_PRIMARY, false);
+            }
+        }
 
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
+        renderAllButtons(graphics, mouseX, mouseY, delta);
+    }
+
+    private void renderAllButtons(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        if (btnClose != null) btnClose.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnHelp != null) btnHelp.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnExport != null) btnExport.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnImport != null) btnImport.drawButton(graphics, mouseX, mouseY, delta);
+        if (tabDashboard != null) tabDashboard.drawButton(graphics, mouseX, mouseY, delta);
+        if (tabTriggers != null) tabTriggers.drawButton(graphics, mouseX, mouseY, delta);
+        if (tabConnection != null) tabConnection.drawButton(graphics, mouseX, mouseY, delta);
+        if (tabSettings != null) tabSettings.drawButton(graphics, mouseX, mouseY, delta);
+        if (subDonate != null) subDonate.drawButton(graphics, mouseX, mouseY, delta);
+        if (subSubscribe != null) subSubscribe.drawButton(graphics, mouseX, mouseY, delta);
+        if (subTwitch != null) subTwitch.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnSave != null) btnSave.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnAdd != null) btnAdd.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnConnect != null) btnConnect.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnTokenSave != null) btnTokenSave.drawButton(graphics, mouseX, mouseY, delta);
+        if (btnTokenDelete != null) btnTokenDelete.drawButton(graphics, mouseX, mouseY, delta);
+        if (chkSkipTest != null) chkSkipTest.drawButton(graphics, mouseX, mouseY, delta);
+    }
+
+    private int contentX() { return winX + Theme.PADDING; }
+
+    private String getVersionSuffix() { return "1.2"; }
+
+    private int getTriggerCount() {
+        if (currentSettings == null || currentSettings.triggers == null) return 0;
+        int count = 0;
+        for (var t : currentSettings.triggers)
+            if (t != null && t.isActive) count++;
+        return count;
     }
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        if (!initialized)
-            return super.charTyped(event);
-        if (activePanel == PanelsType.Status)
-            text1.charTyped(event);
-        else if (activePanel == PanelsType.Types)
-            typesPanel.charTyped(event);
+        if (!initialized) return super.charTyped(event);
+        if (activeTab == Tab.Triggers) {
+            txtSearch.charTyped(event);
+            switch (activeSubTab) {
+                case Donate -> donatePanel.charTyped(event);
+                case Subscribe -> subscribePanel.charTyped(event);
+                case Twitch -> twitchPanel.charTyped(event);
+            }
+        } else if (activeTab == Tab.Connection) {
+            txtToken.charTyped(event);
+        }
         return true;
     }
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (!initialized)
-            return super.keyPressed(event);
-        if (activePanel == PanelsType.Status)
-            text1.keyPressed(event);
-        else if (activePanel == PanelsType.Types)
-            typesPanel.keyPressed(event);
-        if (event.key() == 256)
-            return super.keyPressed(event);
+        if (!initialized) return super.keyPressed(event);
+        if (activeTab == Tab.Triggers) {
+            txtSearch.keyPressed(event);
+            switch (activeSubTab) {
+                case Donate -> donatePanel.keyPressed(event);
+                case Subscribe -> subscribePanel.keyPressed(event);
+                case Twitch -> twitchPanel.keyPressed(event);
+            }
+        } else if (activeTab == Tab.Connection) {
+            txtToken.keyPressed(event);
+        }
+        if (event.key() == 256) return super.keyPressed(event);
         return true;
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (!initialized)
-            return super.mouseClicked(event, doubleClick);
+        if (!initialized) return super.mouseClicked(event, doubleClick);
         super.mouseClicked(event, doubleClick);
-        if (activePanel == PanelsType.Status)
-            text1.mouseClicked(event, doubleClick);
-        if (activePanel == PanelsType.Types)
-            typesPanel.mouseClicked(event, doubleClick);
+        if (activeTab == Tab.Triggers) {
+            txtSearch.mouseClicked(event, doubleClick);
+            switch (activeSubTab) {
+                case Donate -> donatePanel.mouseClicked(event, doubleClick);
+                case Subscribe -> subscribePanel.mouseClicked(event, doubleClick);
+                case Twitch -> twitchPanel.mouseClicked(event, doubleClick);
+            }
+        } else if (activeTab == Tab.Connection) {
+            txtToken.mouseClicked(event, doubleClick);
+        }
         return true;
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
-        if (activePanel == PanelsType.Messages)
-            messagesPanel.mouseScrolled(mouseX, mouseY, deltaY);
-        if (activePanel == PanelsType.Types)
-            typesPanel.mouseScrolled(mouseX, mouseY, deltaY);
+        if (activeTab == Tab.Dashboard) messagesPanel.mouseScrolled(mouseX, mouseY, deltaY);
+        if (activeTab == Tab.Triggers) {
+            switch (activeSubTab) {
+                case Donate -> donatePanel.mouseScrolled(mouseX, mouseY, deltaY);
+                case Subscribe -> subscribePanel.mouseScrolled(mouseX, mouseY, deltaY);
+                case Twitch -> twitchPanel.mouseScrolled(mouseX, mouseY, deltaY);
+            }
+        }
         return true;
     }
 
-    private void switchPanel_Messages() {
-        SetActivePanel(PanelsType.Messages);
+    private void switchTab(Tab tab) {
+        activeTab = tab;
+        updateVisibility();
     }
 
-    private void switchPanel_Status() {
-        SetActivePanel(PanelsType.Status);
+    private void switchSubTab(TriggerSubTab tab) {
+        activeSubTab = tab;
+        updateVisibility();
     }
 
-    private void switchPanel_Types() {
-        SetActivePanel(PanelsType.Types);
+    private void doClose() { Minecraft.getInstance().setScreen(null); }
+
+    private void doHelp() {
+        try { if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(new URI(Constants.GuideToConfiguration)); }
+        catch (Exception e) { e.printStackTrace(); }
     }
 
-    private void switchPanel_Settings() {
-        SetActivePanel(PanelsType.Settings);
-    }
-
-    private void switchPanel_Help() {
-        SetActivePanel(PanelsType.Help);
-    }
-
-    private void switchPanel_SupportAuthor() {
+    private void doExport() {
         try {
-            Desktop.getDesktop().browse(new URI("https://t.me/bummy1337"));
-        } catch (Exception e) {
-            e.printStackTrace();
+            if (configurationSource != null && currentSettings != null)
+                configurationSource.save(currentSettings);
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void doImport() {
+        try {
+            var home = System.getProperty("user.home");
+            var dir = new java.io.File(home, "donation-alerts-integrate");
+            var file = new java.io.File(dir, "settings.yaml");
+            if (file.exists()) {
+                var content = java.nio.file.Files.readString(file.toPath());
+                var transformer = new net.bummy1337.daintegrate.configurations.YamlSettingsTransformer();
+                var imported = transformer.transform(content);
+                if (imported != null && imported.triggers != null) {
+                    currentSettings.triggers = imported.triggers;
+                    configurationSource.save(currentSettings);
+                    rebuildPanels();
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void rebuildPanels() {
+        donatePanel.clearEntries();
+        subscribePanel.clearEntries();
+        twitchPanel.clearEntries();
+        if (currentSettings != null && currentSettings.triggers != null) {
+            for (var trigger : currentSettings.triggers) {
+                var kind = DonationTypeEntry.detectKind(trigger);
+                switch (kind) {
+                    case Subscribe -> subscribePanel.addEntry(new DonationTypeEntry(subscribePanel, trigger, mc, winX + winW - Theme.PADDING, DonationTypeEntry.TriggerKind.Subscribe));
+                    case Twitch -> twitchPanel.addEntry(new DonationTypeEntry(twitchPanel, trigger, mc, winX + winW - Theme.PADDING, DonationTypeEntry.TriggerKind.Twitch));
+                    default -> donatePanel.addEntry(new DonationTypeEntry(donatePanel, trigger, mc, winX + winW - Theme.PADDING, DonationTypeEntry.TriggerKind.Donate));
+                }
+            }
         }
     }
 
     private void settingsSkipTestDonationClick() {
-        SETTINGSBUTTON_SkippingTestDonation.SwitchFlag(!SETTINGSBUTTON_SkippingTestDonation.Flag);
-        currentSettings.skipTestDonation = SETTINGSBUTTON_SkippingTestDonation.Flag;
-        settingsSaveClick();
-    }
-
-    private void settingsSaveClick() {
-        try {
-            if (configurationSource != null && currentSettings != null) {
-                configurationSource.save(currentSettings);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        chkSkipTest.SwitchFlag(!chkSkipTest.Flag);
+        currentSettings.skipTestDonation = chkSkipTest.Flag;
+        try { configurationSource.save(currentSettings); } catch (Exception e) { e.printStackTrace(); }
     }
 
     private void statusSaveClick() {
         try {
             var home = System.getProperty("user.home");
             var writer = new PrintWriter(new java.io.File(home, Constants.TokenFileName), StandardCharsets.UTF_8);
-            writer.println(text1.getText());
+            writer.println(txtToken.getText());
             writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        } catch (IOException e) { e.printStackTrace(); }
     }
 
     private void statusDeleteClick() {
@@ -305,178 +520,158 @@ public class MainScreen extends Screen {
             var home = System.getProperty("user.home");
             var file = new java.io.File(home, Constants.TokenFileName);
             if (file.exists()) file.delete();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private void connectionControllerClick() {
         if (client.getConnected()) {
             client.disconnect();
-            STATUSBUTTON_ConnectionController.setMessage(Component.literal("Connect"));
+            btnConnect.setMessage(Component.literal("Connect"));
         } else {
             var home = System.getProperty("user.home");
             var token = "";
             try (BufferedReader br = new BufferedReader(new FileReader(new java.io.File(home, Constants.TokenFileName)))) {
                 String line;
-                while ((line = br.readLine()) != null && line.length() > 3) {
+                while ((line = br.readLine()) != null && line.length() > 3)
                     token = line.trim();
-                }
-            } catch (FileNotFoundException e) {
-                return;
-            } catch (IOException e) {
-                e.printStackTrace();
-                return;
-            }
-            if (!token.isEmpty()) {
-                client.connect(token);
-            }
-            STATUSBUTTON_ConnectionController.setMessage(Component.literal("Disconnect"));
+            } catch (FileNotFoundException e) { return; }
+            catch (IOException e) { e.printStackTrace(); return; }
+            if (!token.isEmpty()) client.connect(token);
+            btnConnect.setMessage(Component.literal("Disconnect"));
         }
     }
 
     private void typesSaveClick() {
-        List<DonationTypeEntry> entries = typesPanel.getEntries();
         try {
             List<TriggerDto> newTriggers = new ArrayList<>();
-            for (int i = 0; i < entries.size(); i++) {
-                if (entries.get(i).hasError) {
-                    typesSaveTimer = 120;
-                    typesSuccessfulSave = false;
-                    return;
-                }
-                var entry = entries.get(i);
-                var trigger = new TriggerDto();
-                trigger.name = entry.getName();
-                trigger.isActive = entry.getActive();
-
-                var handlerList = new ArrayList<HandlerPropertiesDto>();
-                for (var msg : entry.getMessages()) {
-                    var hp = new HandlerPropertiesDto();
-                    var msgProps = new MessageHandlerProperties();
-                    msgProps.message = msg;
-                    hp.properties = new PropertiesDto<MessageHandlerProperties>();
-                    hp.properties.type = Constants.ModId + "/handler/message";
-                    hp.properties.value = msgProps;
-                    hp.delay = 0;
-                    handlerList.add(hp);
-                }
-                for (var cmd : entry.getCommands()) {
-                    var hp = new HandlerPropertiesDto();
-                    var cmdProps = new CommandHandlerProperties();
-                    cmdProps.command = cmd;
-                    hp.properties = new PropertiesDto<CommandHandlerProperties>();
-                    hp.properties.type = Constants.ModId + "/handler/command";
-                    hp.properties.value = cmdProps;
-                    hp.delay = 0;
-                    handlerList.add(hp);
-                }
-                trigger.handlers = handlerList.toArray(new HandlerPropertiesDto[0]);
-
-                var sensitive = new SensitivePropertiesDto();
-                sensitive.properties = new PropertiesDto();
-                sensitive.properties.type = Constants.ModId + "/sensitive/donate";
-                var donateProps = new DonateSensitiveProperties();
-                try {
-                    donateProps.from = Float.parseFloat(entry.getFrom());
-                } catch (NumberFormatException e) {
-                    donateProps.from = 0;
-                }
-                try {
-                    donateProps.to = Float.parseFloat(entry.getTo());
-                } catch (NumberFormatException e) {
-                    donateProps.to = 999999;
-                }
-                donateProps.currency = entry.getCurrency();
-                sensitive.properties.value = donateProps;
-                trigger.sensitives = new SensitivePropertiesDto[]{sensitive};
-
-                newTriggers.add(trigger);
-            }
+            for (var entry : donatePanel.getEntries()) newTriggers.add(buildTriggerDto(entry));
+            for (var entry : subscribePanel.getEntries()) newTriggers.add(buildTriggerDto(entry));
+            for (var entry : twitchPanel.getEntries()) newTriggers.add(buildTriggerDto(entry));
             currentSettings.triggers = newTriggers.toArray(new TriggerDto[0]);
             configurationSource.save(currentSettings);
-            typesSaveTimer = 120;
-            typesSuccessfulSave = true;
+            saveTimer = 120;
+            saveSuccess = true;
         } catch (Exception e) {
             e.printStackTrace();
-            typesSaveTimer = 120;
-            typesSuccessfulSave = false;
+            saveTimer = 120;
+            saveSuccess = false;
         }
+    }
+
+    private TriggerDto buildTriggerDto(DonationTypeEntry entry) {
+        var trigger = new TriggerDto();
+        trigger.name = entry.getName();
+        trigger.isActive = entry.getActive();
+        var handlerList = new ArrayList<HandlerPropertiesDto>();
+        for (var msg : entry.getMessages()) {
+            var hp = new HandlerPropertiesDto();
+            var msgProps = new MessageHandlerProperties();
+            msgProps.message = msg;
+            hp.properties = new PropertiesDto<MessageHandlerProperties>();
+            hp.properties.type = Constants.ModId + "/handler/message";
+            hp.properties.value = msgProps;
+            hp.delay = 0;
+            handlerList.add(hp);
+        }
+        for (var cmd : entry.getCommands()) {
+            var hp = new HandlerPropertiesDto();
+            var cmdProps = new CommandHandlerProperties();
+            cmdProps.command = cmd;
+            hp.properties = new PropertiesDto<CommandHandlerProperties>();
+            hp.properties.type = Constants.ModId + "/handler/command";
+            hp.properties.value = cmdProps;
+            hp.delay = 0;
+            handlerList.add(hp);
+        }
+        trigger.handlers = handlerList.toArray(new HandlerPropertiesDto[0]);
+        trigger.sensitives = new SensitivePropertiesDto[]{buildSensitive(entry)};
+        return trigger;
+    }
+
+    private SensitivePropertiesDto buildSensitive(DonationTypeEntry entry) {
+        var sensitive = new SensitivePropertiesDto();
+        sensitive.properties = new PropertiesDto();
+        switch (entry.getKind()) {
+            case Donate -> {
+                sensitive.properties.type = Constants.ModId + "/sensitive/donate";
+                var p = new DonateSensitiveProperties();
+                try { p.from = Float.parseFloat(entry.getFrom()); } catch (NumberFormatException e) { p.from = 0; }
+                try { p.to = Float.parseFloat(entry.getTo()); } catch (NumberFormatException e) { p.to = 999999; }
+                p.currency = entry.getCurrency();
+                sensitive.properties.value = p;
+            }
+            case Subscribe -> {
+                sensitive.properties.type = Constants.ModId + "/sensitive/subscribe";
+                var p = new SubscribeSensitiveProperties();
+                p.type = entry.getSubscribeType();
+                sensitive.properties.value = p;
+            }
+            case Twitch -> {
+                if ("Bits".equals(entry.getTwitchSubType())) {
+                    sensitive.properties.type = Constants.ModId + "/sensitive/twitch/bits";
+                    var p = new TwitchBitsSensitiveProperties();
+                    try { p.from = Float.parseFloat(entry.getFrom()); } catch (NumberFormatException e) { p.from = 0; }
+                    try { p.to = Float.parseFloat(entry.getTo()); } catch (NumberFormatException e) { p.to = 999999; }
+                    sensitive.properties.value = p;
+                } else {
+                    sensitive.properties.type = Constants.ModId + "/sensitive/twitch/points";
+                    var p = new TwitchPointsSensitiveProperties();
+                    try { p.from = Float.parseFloat(entry.getFrom()); } catch (NumberFormatException e) { p.from = 0; }
+                    try { p.to = Float.parseFloat(entry.getTo()); } catch (NumberFormatException e) { p.to = 999999; }
+                    sensitive.properties.value = p;
+                }
+            }
+        }
+        return sensitive;
     }
 
     private void typesAddClick() {
         var newTrigger = new TriggerDto();
         newTrigger.name = "New Trigger";
         newTrigger.isActive = true;
-        var donateProps = new DonateSensitiveProperties();
-        donateProps.from = 0;
-        donateProps.to = 999999;
-        donateProps.currency = "";
-        var sp = new SensitivePropertiesDto();
-        sp.properties = new PropertiesDto();
-        sp.properties.type = Constants.ModId + "/sensitive/donate";
-        sp.properties.value = donateProps;
-        newTrigger.sensitives = new SensitivePropertiesDto[]{sp};
-        typesPanel.addEntry(new DonationTypeEntry(typesPanel, newTrigger, mc, this.width));
-    }
-
-    @Override
-    public void onClose() {
-        Minecraft.getInstance().setScreen(null);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
-
-    public void SetActivePanel(PanelsType t) {
-        if (activePanel == t)
-            return;
-
-        if (activePanel == PanelsType.Status)
-            text1.setFocus(false);
-        setVisibilitySettingsPanel(false);
-        setVisibilityStatusPanel(false);
-        setVisibilityMessagesPanel(false);
-        setVisibilityTypesPanel(false);
-        switch (t) {
-            case Messages:
-                setVisibilityMessagesPanel(true);
-                break;
-            case Status:
-                setVisibilityStatusPanel(true);
-                break;
-            case Types:
-                setVisibilityTypesPanel(true);
-                break;
-            case Settings:
-                setVisibilitySettingsPanel(true);
-                break;
-            case Help:
-                if (langHelpLines == null) initializeLangHelpLines();
-                break;
+        ScrollPanel<DonationTypeEntry> target;
+        DonationTypeEntry.TriggerKind kind;
+        switch (activeSubTab) {
+            case Subscribe -> {
+                kind = DonationTypeEntry.TriggerKind.Subscribe;
+                target = subscribePanel;
+                var p = new SubscribeSensitiveProperties();
+                p.type = "YouTubeSubscription";
+                var sp = new SensitivePropertiesDto();
+                sp.properties = new PropertiesDto();
+                sp.properties.type = Constants.ModId + "/sensitive/subscribe";
+                sp.properties.value = p;
+                newTrigger.sensitives = new SensitivePropertiesDto[]{sp};
+            }
+            case Twitch -> {
+                kind = DonationTypeEntry.TriggerKind.Twitch;
+                target = twitchPanel;
+                var p = new TwitchPointsSensitiveProperties();
+                p.from = 0; p.to = 999999;
+                var sp = new SensitivePropertiesDto();
+                sp.properties = new PropertiesDto();
+                sp.properties.type = Constants.ModId + "/sensitive/twitch/points";
+                sp.properties.value = p;
+                newTrigger.sensitives = new SensitivePropertiesDto[]{sp};
+            }
+            default -> {
+                kind = DonationTypeEntry.TriggerKind.Donate;
+                target = donatePanel;
+                var p = new DonateSensitiveProperties();
+                p.from = 0; p.to = 999999; p.currency = "";
+                var sp = new SensitivePropertiesDto();
+                sp.properties = new PropertiesDto();
+                sp.properties.type = Constants.ModId + "/sensitive/donate";
+                sp.properties.value = p;
+                newTrigger.sensitives = new SensitivePropertiesDto[]{sp};
+            }
         }
-        activePanel = t;
+        target.addEntry(new DonationTypeEntry(target, newTrigger, mc, winX + winW - Theme.PADDING, kind));
     }
 
-    void setVisibilitySettingsPanel(boolean value) {
-        SETTINGSBUTTON_SkippingTestDonation.visible =
-                SETTINGSBUTTON_Save.visible = value;
-    }
+    @Override
+    public void onClose() { Minecraft.getInstance().setScreen(null); }
 
-    void setVisibilityStatusPanel(boolean value) {
-        STATUSBUTTON_Save.visible =
-                STATUSBUTTON_Delete.visible =
-                        STATUSBUTTON_ConnectionController.visible = value;
-    }
-
-    void setVisibilityMessagesPanel(boolean value) {
-        messagesPanel.visible = value;
-    }
-
-    void setVisibilityTypesPanel(boolean value) {
-        TYPESBUTTON_Save.visible =
-                TYPESBUTTON_Add.visible = value;
-    }
+    @Override
+    public boolean isPauseScreen() { return false; }
 }

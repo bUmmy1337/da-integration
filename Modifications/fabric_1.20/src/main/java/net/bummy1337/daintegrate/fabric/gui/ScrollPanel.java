@@ -37,19 +37,26 @@ public class ScrollPanel<T extends IEntry> extends AbstractWidget {
         if (scrollPosition > 0)
             scrollPosition = 0;
 
-        if (contentHeight > visualHeight) {
-            int pos = convertRange(-scrollPosition, 0, contentHeight - visualHeight, 0, height - 50);
-            graphics.fill(width - 4, y + pos, width, pos + 50, Palette.YELLOW);
-        }
+        int clipBottom = y + visualHeight;
+        graphics.enableScissor(x, y, width, clipBottom);
+
         int offset = scrollPosition + y;
         for (int i = 0; i < entries.size(); i++) {
             entries.get(i).drawEntry(graphics, x, offset, mouseX, mouseY, partialTicks);
             offset += entries.get(i).getHeightE();
         }
-    }
 
-    private static int convertRange(int value, int fromLow, int fromHigh, int toLow, int toHigh) {
-        return toLow + (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow);
+        graphics.disableScissor();
+
+        int sbX = width - Theme.SCROLLBAR_WIDTH;
+        if (contentHeight > visualHeight) {
+            int trackH = visualHeight;
+            int thumbH = Math.max(20, (int)((float)visualHeight / contentHeight * trackH));
+            int thumbY = y + (int)((float)(-scrollPosition) / (contentHeight - visualHeight) * (trackH - thumbH));
+            boolean hovered = mouseX >= sbX && mouseX <= sbX + Theme.SCROLLBAR_WIDTH && mouseY >= thumbY && mouseY <= thumbY + thumbH;
+            int sbColor = hovered ? Theme.SCROLLBAR_HOVER : Theme.SCROLLBAR;
+            graphics.fill(sbX, thumbY, sbX + Theme.SCROLLBAR_WIDTH, thumbY + thumbH, sbColor);
+        }
     }
 
     public boolean charTyped(CharacterEvent event) {
@@ -65,7 +72,7 @@ public class ScrollPanel<T extends IEntry> extends AbstractWidget {
     }
 
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.y() >= 20)
+        if (event.y() >= y)
             for (T entry : entries)
                 entry.mouseClicked(event, doubleClick);
         return true;
