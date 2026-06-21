@@ -30,6 +30,18 @@ public class ScrollPanel<T extends IEntry> extends AbstractWidget {
         this.visualHeight = height - y;
     }
 
+    public void setBounds(int x, int y, int right, int bottom) {
+        this.x = x;
+        this.y = y;
+        this.width = right;
+        this.height = bottom;
+        this.visualHeight = bottom - y;
+        this.setX(x);
+        this.setY(y);
+        this.setWidth(right - x);
+        this.setHeight(bottom - y);
+    }
+
     public void drawPanel(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
         if (-scrollPosition > contentHeight - visualHeight)
             scrollPosition = -(contentHeight - visualHeight);

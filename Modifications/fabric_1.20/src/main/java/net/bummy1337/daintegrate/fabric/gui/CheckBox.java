@@ -30,17 +30,17 @@ public class CheckBox extends CustomButton {
             int switchX = getX();
             int switchY = getY() + (height - switchH) / 2;
 
-            int trackColor = Flag ? Theme.ACCENT : Theme.BG_INPUT;
+            int trackColor = Flag ? Theme.ACCENT : Theme.BG_ENTRY;
             if (this.isHovered && active)
                 trackColor = Flag ? Theme.ACCENT_HOVER : Theme.BG_ENTRY_HOVER;
 
-            graphics.fill(switchX, switchY, switchX + switchW, switchY + switchH, trackColor);
+            Theme.fillRounded(graphics, switchX, switchY, switchW, switchH, 7, trackColor);
             graphics.outline(switchX, switchY, switchW, switchH, Flag ? Theme.ACCENT_HOVER : Theme.BORDER);
 
             int knobSize = 10;
             int knobX = Flag ? switchX + switchW - knobSize - 2 : switchX + 2;
             int knobY = switchY + (switchH - knobSize) / 2;
-            graphics.fill(knobX, knobY, knobX + knobSize, knobY + knobSize, Theme.WHITE);
+            Theme.fillRounded(graphics, knobX, knobY, knobSize, knobSize, 5, Flag ? Theme.WHITE : Theme.TEXT_MUTED);
 
             Component message = this.getMessage();
             graphics.text(fontrenderer, FontHelper.comp(message.getString()),

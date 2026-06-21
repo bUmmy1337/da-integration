@@ -55,6 +55,7 @@ public class DonationTypeEntry implements IEntry {
     private CustomButton addMessage;
     private CustomButton addCommand;
     private CustomButton deleteEntry;
+    private boolean showActiveToggle = true;
 
     public boolean hasError = false;
 
@@ -69,18 +70,22 @@ public class DonationTypeEntry implements IEntry {
         messages = new ArrayList<>();
         commands = new ArrayList<>();
 
-        addMessage = new CustomButton(0, 0, 22, 16, "+", this::addMessageClick);
+        addMessage = new CustomButton(0, 0, 14, 14, "+", this::addMessageClick);
         addMessage.DefaultBackgroundColor = Theme.GREEN_TRANSPARENT;
         addMessage.HoveredBackgroundColor = Theme.GREEN;
         addMessage.HoveredForegroundColor = Theme.WHITE;
         addMessage.OutlineColor = 0x00000000;
         addMessage.ShowOutline = false;
-        addCommand = new CustomButton(0, 0, 22, 16, "+", this::addCommandClick);
+        addMessage.CornerRadius = 7;
+        addMessage.CircleMode = true;
+        addCommand = new CustomButton(0, 0, 14, 14, "+", this::addCommandClick);
         addCommand.DefaultBackgroundColor = Theme.GREEN_TRANSPARENT;
         addCommand.HoveredBackgroundColor = Theme.GREEN;
         addCommand.HoveredForegroundColor = Theme.WHITE;
         addCommand.OutlineColor = 0x00000000;
         addCommand.ShowOutline = false;
+        addCommand.CornerRadius = 7;
+        addCommand.CircleMode = true;
 
         this.trigger = trigger;
         this.fontRenderer = mc.font;
@@ -90,13 +95,16 @@ public class DonationTypeEntry implements IEntry {
         textBoxName.tag = "Name";
         textBoxName.setText(trigger.name != null ? trigger.name : "");
         checkBoxActive = new CheckBox(0, 0, 80, true, "Active", trigger.isActive, this::checkBoxClick);
+        checkBoxActive.CornerRadius = 7;
 
-        deleteEntry = new CustomButton(0, 0, 18, 16, "x", this::deleteEntryClick);
+        deleteEntry = new CustomButton(0, 0, 14, 14, "x", this::deleteEntryClick);
         deleteEntry.DefaultBackgroundColor = Theme.RED_TRANSPARENT;
         deleteEntry.HoveredBackgroundColor = Theme.RED;
         deleteEntry.HoveredForegroundColor = Theme.WHITE;
         deleteEntry.OutlineColor = Theme.RED;
         deleteEntry.ShowOutline = false;
+        deleteEntry.CornerRadius = 7;
+        deleteEntry.CircleMode = true;
 
         if (kind == TriggerKind.Donate) {
             textBoxFrom = new CustomTextBox(fontRenderer, 0, 0, 80, 20, "0");
@@ -107,23 +115,39 @@ public class DonationTypeEntry implements IEntry {
             textBoxCurrency.tag = "Currency";
         } else if (kind == TriggerKind.Subscribe) {
             subscribeType = "YouTubeSubscription";
-            cycleLeft = new CustomButton(0, 0, 18, 16, "<", this::cycleSubscribeLeft);
-            cycleRight = new CustomButton(0, 0, 18, 16, ">", this::cycleSubscribeRight);
+            cycleLeft = new CustomButton(0, 0, 14, 14, "<", this::cycleSubscribeLeft);
+            cycleRight = new CustomButton(0, 0, 14, 14, ">", this::cycleSubscribeRight);
             cycleLeft.ShowOutline = false;
             cycleRight.ShowOutline = false;
+            cycleLeft.CornerRadius = 7;
+            cycleRight.CornerRadius = 7;
+            cycleLeft.CircleMode = true;
+            cycleRight.CircleMode = true;
         } else if (kind == TriggerKind.Twitch) {
             textBoxFrom = new CustomTextBox(fontRenderer, 0, 0, 80, 20, "0");
             textBoxFrom.tag = "From";
             textBoxTo = new CustomTextBox(fontRenderer, 0, 0, 80, 20, "999999");
             textBoxTo.tag = "To";
             twitchSubType = "Points";
-            cycleLeft = new CustomButton(0, 0, 18, 16, "<", this::cycleTwitchLeft);
-            cycleRight = new CustomButton(0, 0, 18, 16, ">", this::cycleTwitchRight);
+            cycleLeft = new CustomButton(0, 0, 14, 14, "<", this::cycleTwitchLeft);
+            cycleRight = new CustomButton(0, 0, 14, 14, ">", this::cycleTwitchRight);
             cycleLeft.ShowOutline = false;
             cycleRight.ShowOutline = false;
+            cycleLeft.CornerRadius = 7;
+            cycleRight.CornerRadius = 7;
+            cycleLeft.CircleMode = true;
+            cycleRight.CircleMode = true;
         }
 
         loadFromTrigger(trigger);
+    }
+
+    public void setRight(int right) {
+        this.right = right;
+    }
+
+    public void setShowActiveToggle(boolean showActiveToggle) {
+        this.showActiveToggle = showActiveToggle;
     }
 
     public static TriggerKind detectKind(TriggerDto trigger) {
@@ -251,7 +275,9 @@ public class DonationTypeEntry implements IEntry {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         textBoxName.mouseClicked(event, doubleClick);
-        checkBoxActive.mouseClicked(event, doubleClick);
+        if (showActiveToggle) {
+            checkBoxActive.mouseClicked(event, doubleClick);
+        }
         addMessage.mouseClicked(event, doubleClick);
         addCommand.mouseClicked(event, doubleClick);
         deleteEntry.mouseClicked(event, doubleClick);
@@ -329,10 +355,12 @@ public class DonationTypeEntry implements IEntry {
         int rowH = 22;
         int fieldGap = 8;
 
-        // Row 0: Name + Active + Delete
+        // Row 0: Name + Delete
         textBoxName.renderButton(graphics, innerX, offset, partialTicks);
-        checkBoxActive.drawButton(graphics, mc, innerX + 208, offset + 10, mouseX, mouseY, partialTicks);
-        deleteEntry.drawButton(graphics, mc, innerX + cardW - 26, offset + 12, mouseX, mouseY, partialTicks);
+        if (showActiveToggle) {
+            checkBoxActive.drawButton(graphics, mc, innerX + 208, offset + 1, mouseX, mouseY, partialTicks);
+        }
+        deleteEntry.drawButton(graphics, mc, x + cardW - 20, centerY(offset, 20, 14), mouseX, mouseY, partialTicks);
         offset += rowH + 14;
 
         if (kind == TriggerKind.Donate) {
@@ -343,18 +371,18 @@ public class DonationTypeEntry implements IEntry {
         } else if (kind == TriggerKind.Subscribe) {
             graphics.text(fontRenderer, FontHelper.comp("TYPE"), innerX, offset, Theme.TEXT_MUTED, false);
             int typeBtnOff = innerX + FontHelper.width(fontRenderer, "TYPE") + fieldGap;
-            cycleLeft.drawButton(graphics, mc, typeBtnOff, offset + 10, mouseX, mouseY, partialTicks);
+            cycleLeft.drawButton(graphics, mc, typeBtnOff, centerY(offset, 10, 14), mouseX, mouseY, partialTicks);
             int typeW = FontHelper.width(fontRenderer, subscribeType);
-            graphics.text(fontRenderer, FontHelper.comp(subscribeType), typeBtnOff + 24, offset + 13, Theme.TEXT_ACCENT, false);
-            cycleRight.drawButton(graphics, mc, typeBtnOff + 26 + typeW + 2, offset + 10, mouseX, mouseY, partialTicks);
+            graphics.text(fontRenderer, FontHelper.comp(subscribeType), typeBtnOff + 20, offset + 2, Theme.TEXT_ACCENT, false);
+            cycleRight.drawButton(graphics, mc, typeBtnOff + 22 + typeW + 2, centerY(offset, 10, 14), mouseX, mouseY, partialTicks);
             offset += rowH + 14;
         } else if (kind == TriggerKind.Twitch) {
             graphics.text(fontRenderer, FontHelper.comp("TYPE"), innerX, offset, Theme.TEXT_MUTED, false);
             int typeBtnOff = innerX + FontHelper.width(fontRenderer, "TYPE") + fieldGap;
-            cycleLeft.drawButton(graphics, mc, typeBtnOff, offset + 10, mouseX, mouseY, partialTicks);
+            cycleLeft.drawButton(graphics, mc, typeBtnOff, centerY(offset, 10, 14), mouseX, mouseY, partialTicks);
             int typeW = FontHelper.width(fontRenderer, twitchSubType);
-            graphics.text(fontRenderer, FontHelper.comp(twitchSubType), typeBtnOff + 24, offset + 13, Theme.TEXT_ACCENT, false);
-            cycleRight.drawButton(graphics, mc, typeBtnOff + 26 + typeW + 2, offset + 10, mouseX, mouseY, partialTicks);
+            graphics.text(fontRenderer, FontHelper.comp(twitchSubType), typeBtnOff + 20, offset + 2, Theme.TEXT_ACCENT, false);
+            cycleRight.drawButton(graphics, mc, typeBtnOff + 22 + typeW + 2, centerY(offset, 10, 14), mouseX, mouseY, partialTicks);
             offset += rowH + 2;
             textBoxFrom.renderButton(graphics, innerX, offset, partialTicks);
             textBoxTo.renderButton(graphics, innerX + 88, offset, partialTicks);
@@ -364,7 +392,7 @@ public class DonationTypeEntry implements IEntry {
         // Messages section (header always visible)
         int msgLabelW = FontHelper.width(fontRenderer, "MESSAGES");
         graphics.text(fontRenderer, FontHelper.comp("MESSAGES"), innerX, offset, Theme.TEXT_MUTED, false);
-        addMessage.drawButton(graphics, mc, innerX + msgLabelW + 4, offset - 9, mouseX, mouseY, partialTicks);
+        addMessage.drawButton(graphics, mc, innerX + msgLabelW + 8, centerY(offset, 8, 14), mouseX, mouseY, partialTicks);
         offset += 12;
 
         for (int i = 0; i < messages.size(); i++) {
@@ -372,10 +400,12 @@ public class DonationTypeEntry implements IEntry {
             offset += 30;
         }
 
+        offset += 6;
+
         // Commands section (header always visible)
         int cmdLabelW = FontHelper.width(fontRenderer, "COMMANDS");
         graphics.text(fontRenderer, FontHelper.comp("COMMANDS"), innerX, offset, Theme.TEXT_MUTED, false);
-        addCommand.drawButton(graphics, mc, innerX + cmdLabelW + 4, offset - 9, mouseX, mouseY, partialTicks);
+        addCommand.drawButton(graphics, mc, innerX + cmdLabelW + 8, centerY(offset, 8, 14), mouseX, mouseY, partialTicks);
         offset += 12;
 
         for (int i = 0; i < commands.size(); i++) {
@@ -383,35 +413,54 @@ public class DonationTypeEntry implements IEntry {
             offset += 30;
         }
 
-        // Preview
-        if (!messages.isEmpty() || !commands.isEmpty()) {
-            String previewText = getPreviewText();
-            if (previewText != null && !previewText.isEmpty()) {
-                int previewW = cardW - 24;
-                Theme.fillPanel(graphics, innerX, offset, previewW, 18);
-                graphics.text(fontRenderer, FontHelper.comp("> " + previewText), innerX + 5, offset + 5, Theme.TEXT_SECONDARY, false);
-                offset += 24;
-            }
-        }
+        offset = renderPreview(graphics, innerX, offset, cardW - 24);
 
         offset += 6;
     }
 
-    private String getPreviewText() {
-        if (!messages.isEmpty()) {
-            String msg = messages.get(0).line.getText();
-            return msg.replace("{username}", "Player")
-                      .replace("{amount}", "100")
-                      .replace("{currency}", "USD")
-                      .replace("{playername}", "Steve")
-                      .replace("{message}", "Hello!");
+    private int centerY(int rowY, int rowH, int elementH) {
+        return rowY + (rowH - elementH) / 2;
+    }
+
+    private int renderPreview(GuiGraphicsExtractor graphics, int x, int y, int width) {
+        boolean hasMessage = !messages.isEmpty() && !messages.get(0).line.getText().isEmpty();
+        boolean hasCommand = !commands.isEmpty() && !commands.get(0).line.getText().isEmpty();
+        if (!hasMessage && !hasCommand) return y;
+
+        graphics.text(fontRenderer, FontHelper.comp("PREVIEW"), x, y, Theme.TEXT_MUTED, false);
+        y += 12;
+
+        if (hasMessage) {
+            Theme.fillPanel(graphics, x, y, width, 18);
+            graphics.text(fontRenderer, FontHelper.comp("> " + getMessagePreview()), x + 5, y + 5, Theme.TEXT_SECONDARY, false);
+            y += 24;
         }
-        if (!commands.isEmpty()) {
-            String cmd = commands.get(0).line.getText();
-            return "/" + cmd.replace("{username}", "Player")
-                            .replace("{amount}", "100");
+
+        if (hasCommand) {
+            Theme.fillPanel(graphics, x, y, width, 18);
+            graphics.text(fontRenderer, FontHelper.comp("/" + getCommandPreview()), x + 5, y + 5, Theme.TEXT_SECONDARY, false);
+            y += 24;
         }
-        return null;
+
+        return y;
+    }
+
+    private String getMessagePreview() {
+        return messages.get(0).line.getText()
+                .replace("{username}", "Player")
+                .replace("{amount}", "100")
+                .replace("{currency}", "USD")
+                .replace("{playername}", "Steve")
+                .replace("{message}", "Hello!");
+    }
+
+    private String getCommandPreview() {
+        return commands.get(0).line.getText()
+                .replace("{username}", "Player")
+                .replace("{amount}", "100")
+                .replace("{currency}", "USD")
+                .replace("{playername}", "Steve")
+                .replace("{message}", "Hello!");
     }
 
     @Override
@@ -426,10 +475,13 @@ public class DonationTypeEntry implements IEntry {
         }
         base += 12; // messages header
         base += messages.size() * 30;
-        base += 12; // commands header
+        base += 18; // gap + commands header
         base += commands.size() * 30;
-        if (!messages.isEmpty() || !commands.isEmpty())
-            base += 24; // preview
+        int previewLines = 0;
+        if (!messages.isEmpty() && !messages.get(0).line.getText().isEmpty()) previewLines++;
+        if (!commands.isEmpty() && !commands.get(0).line.getText().isEmpty()) previewLines++;
+        if (previewLines > 0)
+            base += 12 + previewLines * 24;
         base += 18; // padding
         return base;
     }
@@ -511,11 +563,14 @@ public class DonationTypeEntry implements IEntry {
             wtype = t;
             line = new CustomTextBox(mc.font, 0, 0, 210, 20, "");
             line.tag = tag;
-            delete = new CustomButton(0, 0, 20, true, "x", () -> deleteClick());
+            delete = new CustomButton(0, 0, 14, 14, "x", () -> deleteClick());
             delete.DefaultBackgroundColor = Theme.RED_TRANSPARENT;
             delete.HoveredBackgroundColor = Theme.RED;
             delete.HoveredForegroundColor = Theme.WHITE;
             delete.OutlineColor = Theme.RED;
+            delete.ShowOutline = false;
+            delete.CornerRadius = 7;
+            delete.CircleMode = true;
         }
 
         public void deleteClick() {
@@ -532,7 +587,7 @@ public class DonationTypeEntry implements IEntry {
 
         public void drawElement(GuiGraphicsExtractor graphics, int x, int y, int mouseX, int mouseY, float partialTicks) {
             line.renderButton(graphics, x, y, partialTicks);
-            delete.drawButton(graphics, mc, x + 220, y + 5, mouseX, mouseY, partialTicks);
+            delete.drawButton(graphics, mc, x + 218, centerY(y, 20, 14), mouseX, mouseY, partialTicks);
         }
     }
 }

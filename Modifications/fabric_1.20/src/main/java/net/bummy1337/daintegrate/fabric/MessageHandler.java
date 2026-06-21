@@ -10,10 +10,15 @@ import net.minecraft.network.chat.Component;
 public class MessageHandler implements IHandler<MessageHandlerProperties> {
     @Override
     public void handle(ReadOnlyDonationAlertsEvent event, MessageHandlerProperties properties) {
-        var player = Minecraft.getInstance().player;
-        if (player == null)
-            return;
-        player.sendSystemMessage(Component.literal(ReplaceHelper.replace(properties.message, event, player.getName().getString())));
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            var player = mc.player;
+            if (player == null) {
+                return;
+            }
+            String text = ReplaceHelper.replace(properties.message, event, player.getName().getString());
+            player.sendSystemMessage(Component.literal(text));
+        });
     }
 
     @Override

@@ -19,6 +19,8 @@ public class CustomButton extends AbstractWidget {
     public int OutlineHoverColor = Theme.BORDER_HOVER;
     public boolean UseGradient = false;
     public boolean ShowOutline = true;
+    public int CornerRadius = 0;
+    public boolean CircleMode = false;
     protected final Runnable onClick;
 
     public CustomButton(int x, int y, int width, boolean visibility, String text, Runnable onClick) {
@@ -79,6 +81,9 @@ public class CustomButton extends AbstractWidget {
             }
             if (UseGradient) {
                 graphics.fillGradient(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, colorBg, Theme.BG_MAIN);
+            } else if (CornerRadius > 0 || CircleMode) {
+                int radius = CircleMode ? Math.min(this.width, this.height) / 2 : CornerRadius;
+                Theme.fillRounded(graphics, this.getX(), this.getY(), this.width, this.height, radius, colorBg);
             } else {
                 graphics.fill(this.getX(), this.getY(), this.getX() + this.width, this.getY() + this.height, colorBg);
             }

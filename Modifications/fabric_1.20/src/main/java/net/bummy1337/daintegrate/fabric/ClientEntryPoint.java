@@ -16,6 +16,7 @@ import net.bummy1337.daintegrate.DonationAlertsIntegrate;
 import net.bummy1337.daintegrate.DonationAlertsIntegrateFactory;
 import net.bummy1337.daintegrate.EventProcessor;
 import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
+import net.bummy1337.daintegrate.fabric.gui.clickgui.ClickGui;
 import net.bummy1337.daintegrate.fabric.screen.MainScreen;
 import net.bummy1337.daintegrate.listeners.DonationAlertsEventListener;
 import net.bummy1337.dontaionalerts.DonationAlertsClient;
@@ -44,6 +45,7 @@ public class ClientEntryPoint implements ClientModInitializer {
     private static FileConfigurationSource configurationSource = null;
     private DonationAlertsClient client;
     private KeyMapping openWindowKey;
+    private KeyMapping openClickGuiKey;
     private List<ReadOnlyDonationAlertsEvent> donations = new ArrayList<>();
 
     @Override
@@ -61,20 +63,6 @@ public class ClientEntryPoint implements ClientModInitializer {
                     LOGGER::info);
         } catch (IOException e) {
             LOGGER.error("failed to initialize donation-alerts-integrate", e);
-        }
-
-        if (configurationSource != null) {
-            configurationSource.addListener(settings -> {
-                var player = Minecraft.getInstance().player;
-                if (player == null)
-                    return;
-                if (settings.disableSettingsUpdateMessage)
-                    return;
-                player.sendSystemMessage(getPrefix().append("settings updated with ")
-                        .append(String.valueOf(settings.triggers == null ? 0 : settings.triggers.length))
-                        .append(" triggers")
-                );
-            });
         }
 
         var eventProcessor = new EventProcessor();
@@ -109,11 +97,25 @@ public class ClientEntryPoint implements ClientModInitializer {
                         category
                 )
         );
+        openClickGuiKey = KeyMappingHelper.registerKeyMapping(
+                new KeyMapping(
+                        "key.daintegrate.clickgui",
+                        InputConstants.Type.KEYSYM,
+                        GLFW.GLFW_KEY_GRAVE_ACCENT,
+                        category
+                )
+        );
 
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             while (openWindowKey.consumeClick()) {
                 if (configurationSource != null) {
                     Minecraft.getInstance().setScreen(new MainScreen(configurationSource, this.client, donations));
+                }
+            }
+            while (openClickGuiKey.consumeClick()) {
+                if (configurationSource != null) {
+                    ClickGui.getInstance().setContext(configurationSource, this.client, donations);
+                    ClickGui.getInstance().openGui();
                 }
             }
         });
