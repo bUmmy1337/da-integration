@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Modifications
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: current
+
+      - name: Name the release after the Minecraft and mod versions
+        run: |
+          mc=$(grep '^minecraft_version=' fabric_1.20/gradle.properties | cut -d= -f2)
+          mod=$(grep '^mod_version=' fabric_1.20/gradle.properties | cut -d= -f2)
+          echo "TAG=${mc}_${mod}" >> "$GITHUB_ENV"
+
+      - name: Build the mod and run tests
+        run: gradle :DonationAlerts:test :DaUi:test :fabric_1.20:build
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: "[FABRIC] ${{ env.TAG }} - DA Integration"
+          body_path: .github/release-notes/${{ env.TAG }}.md
+          files: |
+            Modifications/fabric_1.20/build/libs/daintegrate-*[0-9].jar
+          fail_on_unmatched_files: true
