@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      replaces:
+        description: Tag of an older release to delete once this one is published
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -42,3 +47,10 @@ jobs:
           files: |
             Modifications/fabric_1.20/build/libs/*[0-9].jar
           fail_on_unmatched_files: true
+
+      - name: Delete the release this one replaces
+        if: inputs.replaces != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD: ${{ inputs.replaces }}
+        run: gh release delete "$OLD" --cleanup-tag --yes --repo "$GITHUB_REPOSITORY"
