@@ -7,4 +7,7 @@ public class SettingsDto {
     public boolean skipTestDonation;
     public boolean disableAutoConnect;
     public float uiScale;
+    public boolean disableToasts;
+    /** TopLeft, TopRight, BottomLeft or BottomRight; empty means TopRight. */
+    public String toastCorner;
 }

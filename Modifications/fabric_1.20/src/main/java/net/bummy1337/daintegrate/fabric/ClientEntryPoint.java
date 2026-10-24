@@ -9,10 +9,13 @@ import net.bummy1337.daintegrate.DonationAlertsIntegrateFactory;
 import net.bummy1337.daintegrate.EventProcessor;
 import net.bummy1337.daintegrate.TokenStore;
 import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
+import net.bummy1337.daintegrate.configurations.SettingsDto;
+import net.bummy1337.daintegrate.fabric.imgui.ImGuiRuntime;
 import net.bummy1337.daintegrate.fabric.imgui.ImGuiScreen;
 import net.bummy1337.daintegrate.listeners.DonationAlertsEventListener;
 import net.bummy1337.daintegrate.ui.DaMenu;
 import net.bummy1337.daintegrate.ui.I18n;
+import net.bummy1337.daintegrate.ui.Toasts;
 import net.bummy1337.dontaionalerts.ConnectionState;
 import net.bummy1337.dontaionalerts.DonationAlertsClient;
 import net.bummy1337.dontaionalerts.ReadOnlyDonationAlertsEvent;
@@ -23,6 +26,7 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
@@ -84,7 +88,15 @@ public class ClientEntryPoint implements ClientModInitializer {
             events.add(event);
             while (events.size() > MaxEvents)
                 events.remove(0);
+            Minecraft.getInstance().execute(() -> {
+                syncLanguage();
+                Toasts.pushEvent(event);
+            });
         });
+
+        // Pop-up notifications over the game, above everything else on the HUD
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(Constants.ModId, "toasts"),
+                (graphics, deltaTracker) -> ImGuiRuntime.renderHud(graphics, currentSettings()));
 
         var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Constants.ModId, "keys"));
         openKey = KeyMappingHelper.registerKeyMapping(
@@ -104,6 +116,15 @@ public class ClientEntryPoint implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, minecraft) -> onJoin());
 
         autoConnect();
+    }
+
+    private SettingsDto currentSettings() {
+        return configurationSource == null ? null : configurationSource.getCurrent();
+    }
+
+    private boolean toastsEnabled() {
+        var settings = currentSettings();
+        return settings == null || !settings.disableToasts;
     }
 
     private void autoConnect() {
@@ -145,13 +166,30 @@ public class ClientEntryPoint implements ClientModInitializer {
             return;
         lastAnnounced = state;
         syncLanguage();
+        // With pop-up notifications on, connection changes go there instead of the chat
+        boolean toasts = toastsEnabled();
         switch (state) {
-            case Connected -> send(prefix().append(colored(I18n.t("chat.connected"), Green)));
+            case Connected -> {
+                if (toasts)
+                    Toasts.push(Toasts.Kind.Connected, "Donation Alerts", I18n.t("toast.connected"), null);
+                else
+                    send(prefix().append(colored(I18n.t("chat.connected"), Green)));
+            }
             case Disconnected -> {
-                if (previous == ConnectionState.Connected)
+                if (previous != ConnectionState.Connected)
+                    return;
+                if (toasts)
+                    Toasts.push(Toasts.Kind.Disconnected, "Donation Alerts", I18n.t("toast.disconnected"), null);
+                else
                     send(prefix().append(I18n.t("chat.disconnected")));
             }
-            case Error -> send(prefix().append(colored(I18n.t("chat.error", String.valueOf(client.getLastError())), Red)));
+            case Error -> {
+                var reason = String.valueOf(client.getLastError());
+                if (toasts)
+                    Toasts.push(Toasts.Kind.Error, I18n.t("toast.error"), reason, null);
+                else
+                    send(prefix().append(colored(I18n.t("chat.error", reason), Red)));
+            }
             default -> {
             }
         }
