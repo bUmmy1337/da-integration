@@ -68,7 +68,7 @@ public class MinecraftImGuiRenderer implements ImGuiHost.FontTextureUploader {
             var scissor = new ScreenRectangle(batch.clipLeft(), batch.clipTop(),
                     batch.clipRight() - batch.clipLeft(), batch.clipBottom() - batch.clipTop());
             var setup = TextureSetup.singleTexture(texture.getTextureView(), texture.getSampler());
-            renderState.submitGuiElement(new ImGuiDrawState(batch, setup, scissor));
+            renderState.addGuiElement(new ImGuiDrawState(batch, setup, scissor));
         }
     }
 }
