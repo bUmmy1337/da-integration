@@ -4,6 +4,7 @@ import imgui.ImGui;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import net.bummy1337.daintegrate.ui.DaMenu;
+import net.bummy1337.daintegrate.ui.Toasts;
 import net.bummy1337.daintegrate.ui.DrawBatches;
 import net.bummy1337.daintegrate.ui.I18n;
 import net.bummy1337.daintegrate.ui.ImGuiHost;
@@ -33,6 +34,9 @@ public class MenuPreview {
         String page = null;
         String state = "Connected";
         String screenshot = null;
+        boolean toasts = false;
+        boolean hud = false;
+        String corner = null;
         boolean token = true;
         int width = 1280;
         int height = 800;
@@ -45,6 +49,9 @@ public class MenuPreview {
                 case "--state" -> state = args[++i];
                 case "--screenshot" -> screenshot = args[++i];
                 case "--no-token" -> token = false;
+                case "--toasts" -> toasts = true;
+                case "--hud" -> hud = true;
+                case "--corner" -> corner = args[++i];
                 case "--scale" -> scale = Float.parseFloat(args[++i]);
                 case "--game-path" -> gamePath = Float.parseFloat(args[++i]);
                 case "--size" -> {
@@ -99,6 +106,11 @@ public class MenuPreview {
         if (page != null)
             menu.open(DaMenu.Page.valueOf(page));
 
+        if (corner != null)
+            context.getSettings().toastCorner = corner;
+        if (toasts)
+            pushSampleToasts();
+
         int frames = 0;
         while (!GLFW.glfwWindowShouldClose(window)) {
             GLFW.glfwPollEvents();
@@ -112,7 +124,10 @@ public class MenuPreview {
             gl3.newFrame();
             host.beginFrame(fbWidth[0], fbHeight[0], ImGui.getIO().getDeltaTime());
             drawBackdrop(fbWidth[0], fbHeight[0]);
-            menu.render(fbWidth[0], fbHeight[0]);
+            if (hud)
+                DaMenu.renderToasts(settings, fbWidth[0], fbHeight[0], host, scale * (settings.uiScale <= 0 ? 1f : settings.uiScale));
+            else
+                menu.render(fbWidth[0], fbHeight[0]);
             host.endFrame();
 
             glViewport(0, 0, fbWidth[0], fbHeight[0]);
@@ -124,7 +139,8 @@ public class MenuPreview {
             else
                 gl3.renderDrawData(ImGui.getDrawData());
 
-            if (screenshot != null && ++frames == 6) {
+            // With toasts, wait until their slide-in animation has finished
+            if (screenshot != null && ++frames >= 6 && (!toasts || ImGui.getTime() > 1.2)) {
                 save(fbWidth[0], fbHeight[0], new File(screenshot));
                 break;
             }
@@ -155,6 +171,13 @@ public class MenuPreview {
         }
         ImageIO.write(image, "png", file);
         System.out.println("Saved " + file.getAbsolutePath());
+    }
+
+    private static void pushSampleToasts() {
+        boolean ru = net.bummy1337.daintegrate.ui.I18n.isRussian();
+        Toasts.push(Toasts.Kind.Connected, "Donation Alerts", I18n.t("toast.connected"), null);
+        Toasts.push(Toasts.Kind.Subscription, "Мария", ru ? "Подписка на YouTube" : "YouTube subscription", null);
+        Toasts.push(Toasts.Kind.Donation, "nightowl", ru ? "Включай ночь!" : "Make it night!", "500 RUB");
     }
 
     /** A soft, out-of-focus "world" (sky, sun, hills) standing in for the game's blurred background. */

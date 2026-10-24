@@ -34,6 +34,29 @@ class SettingsPage {
                 toggle(I18n.t("set.welcome"), null, !settings.disableWelcomeMessage, v -> settings.disableWelcomeMessage = !v);
             }
             Widgets.endCard();
+
+            if (Widgets.beginGroup("##toasts", I18n.t("set.toasts"), column)) {
+                toggle(I18n.t("set.toasts.enabled"), I18n.t("set.toasts.desc"), !settings.disableToasts, v -> settings.disableToasts = !v);
+                Widgets.gap(6);
+                ImGui.beginDisabled(settings.disableToasts);
+                ImGui.text(I18n.t("set.toasts.position"));
+                var corner = Toasts.Corner.parse(settings.toastCorner);
+                float half = (ImGui.getContentRegionAvailX() - spacing) / 2;
+                int vertical = Widgets.segmented("##toast-v", new String[]{I18n.t("seg.top"), I18n.t("seg.bottom")}, corner.name().startsWith("Bottom") ? 1 : 0, half);
+                ImGui.sameLine();
+                int horizontal = Widgets.segmented("##toast-h", new String[]{I18n.t("seg.left"), I18n.t("seg.right")}, corner.name().endsWith("Right") ? 1 : 0, half);
+                var picked = Toasts.Corner.valueOf((vertical == 1 ? "Bottom" : "Top") + (horizontal == 1 ? "Right" : "Left"));
+                if (picked != corner) {
+                    settings.toastCorner = picked.name();
+                    save(settings);
+                    sample();
+                }
+                Widgets.gap(4);
+                if (Widgets.button(I18n.t("set.toasts.test"), -1))
+                    sample();
+                ImGui.endDisabled();
+            }
+            Widgets.endCard();
         }
         ImGui.endGroup();
         ImGui.sameLine();
@@ -75,6 +98,10 @@ class SettingsPage {
 
         if (error != null)
             Widgets.colored(Theme.Danger, error);
+    }
+
+    private static void sample() {
+        Toasts.push(Toasts.Kind.Donation, I18n.t("toast.sample.name"), I18n.t("toast.sample.message"), "500 RUB");
     }
 
     private void toggle(String label, String description, boolean value, Consumer<Boolean> setter) {

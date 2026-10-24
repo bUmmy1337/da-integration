@@ -5,7 +5,6 @@ import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import net.bummy1337.daintegrate.ui.DaMenu;
 import net.bummy1337.daintegrate.ui.I18n;
-import net.bummy1337.daintegrate.ui.ImGuiHost;
 import net.bummy1337.daintegrate.ui.UiContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -21,12 +20,9 @@ import net.minecraft.network.chat.Component;
  * drawn through the game's GUI renderer.
  */
 public class ImGuiScreen extends Screen {
-    private static ImGuiHost host;
-    private static MinecraftImGuiRenderer renderer;
     private static DaMenu menu;
 
     private final UiContext context;
-    private long lastFrame;
     private boolean textInput;
     private boolean ctrl;
     private boolean shift;
@@ -35,14 +31,10 @@ public class ImGuiScreen extends Screen {
     public ImGuiScreen(UiContext context) {
         super(Component.literal("Donation Alerts Integrate"));
         this.context = context;
-        if (host == null) {
-            renderer = new MinecraftImGuiRenderer();
-            host = new ImGuiHost(renderer);
-            var keyboard = Minecraft.getInstance().keyboardHandler;
-            host.setClipboard(keyboard::getClipboard, keyboard::setClipboard);
-            // The menu is kept between openings, so unsaved trigger edits survive closing it
-            menu = new DaMenu(host, context);
-        }
+        // The menu is kept between openings, so unsaved trigger edits survive closing it
+        if (menu == null)
+            menu = new DaMenu(ImGuiRuntime.host(), context);
+        ImGuiRuntime.setMenuOpen(true);
     }
 
     public static DaMenu menu() {
@@ -61,19 +53,12 @@ public class ImGuiScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
 
         I18n.setLanguage(minecraft.getLanguageManager().getSelected());
-        var settings = context.getSettings();
-        float userScale = settings == null || settings.uiScale <= 0 ? 1f : settings.uiScale;
-        float autoScale = Math.max(1f, Math.min(2.5f, height / 900f));
-        host.prepare(autoScale * userScale);
-
-        long now = System.nanoTime();
-        float deltaSeconds = lastFrame == 0 ? 1f / 60f : (now - lastFrame) / 1_000_000_000f;
-        lastFrame = now;
-
-        host.beginFrame(width, height, deltaSeconds);
+        var host = ImGuiRuntime.host();
+        host.prepare(ImGuiRuntime.scale(context.getSettings(), height));
+        host.beginFrame(width, height, ImGuiRuntime.frameDelta());
         menu.render(width, height);
         host.endFrame();
-        renderer.submit(graphics, ImGui.getDrawData(), guiScale);
+        ImGuiRuntime.renderer().submit(graphics, ImGui.getDrawData(), guiScale);
 
         boolean wantsText = ImGui.getIO().getWantTextInput();
         if (wantsText != textInput) {
@@ -150,7 +135,7 @@ public class ImGuiScreen extends Screen {
         var io = ImGui.getIO();
         io.addFocusEvent(false);
         ctrl = shift = alt = false;
-        lastFrame = 0;
+        ImGuiRuntime.setMenuOpen(false);
     }
 
     @Override
