@@ -42,10 +42,6 @@ jobs:
           [ -z "$JAR" ] && JAR=$(find ~/.gradle/caches/fabric-loom -name "*.jar" | grep -i minecraft | grep -v sources | head -1)
           echo "jar: $JAR"
           mkdir -p /tmp/mc && cd /tmp/mc && unzip -q -o "$JAR" 'net/*' 'com/mojang/*'
-          echo "=== Gui"; javap -p net/minecraft/client/gui/Gui.class | grep -iE "title|overlay|subtitle|times|hud|public .*;" | head -60
-          echo "=== classes with setTitle/setOverlayMessage/setTimes"
-          for f in $(grep -rlE "setOverlayMessage|setSubtitle|setTimes|ClientboundSetTitleTextPacket" --include=*.class net/minecraft/client | head -12); do
-            echo "=== $f"; javap -p "$f" | grep -iE "title|overlay|subtitle|times|actionbar"
-          done
+          echo "=== Hud"; javap -p net/minecraft/client/gui/Hud.class | grep -iE "title|overlay|subtitle|times|public" | head -60 || true
           echo "=== ClientPacketListener title handlers"
-          javap -p -c net/minecraft/client/multiplayer/ClientPacketListener.class | grep -A25 -E "void (setTitleText|setSubtitleText|setTitlesAnimation|setActionBarText)\(" | grep -E "invoke|void " | head -40
+          javap -p -c net/minecraft/client/multiplayer/ClientPacketListener.class | grep -A30 -E "void (setTitleText|setSubtitleText|setTitlesAnimation|setActionBarText)\(" | grep -E "invoke|void " | head -40 || true
