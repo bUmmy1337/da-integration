@@ -33,16 +33,3 @@ jobs:
           path: Modifications/fabric_1.20/build/libs/*.jar
           if-no-files-found: error
 
-      # Temporary: list the Minecraft API the mod uses, to fix the port against the real 26.3 names
-      - name: Inspect Minecraft API
-        if: always()
-        run: |
-          JAR=$(find ~/.gradle/caches -name "minecraft-*merged*named*.jar" -o -name "minecraft-client*named*.jar" | grep -v sources | head -1)
-          [ -z "$JAR" ] && JAR=$(find ~/.gradle/caches/fabric-loom -name "*.jar" | grep -i minecraft | grep -v sources | head -1)
-          echo "jar: $JAR"
-          mkdir -p /tmp/mc && cd /tmp/mc && unzip -q -o "$JAR" 'net/*' 'com/mojang/*'
-          echo "=== classes mentioning openUri/openPath/openFile"
-          grep -rlE "openUri|openPath|openFile|openUrl" --include=*.class . | head -20
-          for f in $(grep -rlE "openUri|openPath|openFile|openUrl" --include=*.class . | head -8); do
-            echo "=== $f"; javap -p "$f" | grep -iE "open(Uri|Path|File|Url)"
-          done

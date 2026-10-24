@@ -8,7 +8,7 @@ import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
 import net.bummy1337.daintegrate.ui.UiContext;
 import net.bummy1337.dontaionalerts.DonationAlertsClient;
 import net.bummy1337.dontaionalerts.ReadOnlyDonationAlertsEvent;
-import net.minecraft.util.Util;
+import com.mojang.blaze3d.Blaze3D;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 
@@ -89,12 +89,12 @@ class MinecraftUiContext implements UiContext {
 
     @Override
     public void openUrl(String url) {
-        Util.getPlatform().openUri(URI.create(url));
+        Blaze3D.openUri(URI.create(url));
     }
 
     @Override
     public void openFile(File file) {
-        Util.getPlatform().openPath(file.toPath());
+        Blaze3D.openPath(file.toPath());
     }
 
     @Override
