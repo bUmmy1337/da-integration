@@ -1,5 +1,6 @@
 package net.bummy1337.daintegrate.ui.preview;
 
+import net.bummy1337.daintegrate.Constants;
 import net.bummy1337.daintegrate.TokenStore;
 import net.bummy1337.daintegrate.configurations.SettingsDto;
 import net.bummy1337.daintegrate.configurations.TriggerDto;
@@ -27,7 +28,7 @@ class PreviewContext implements UiContext {
 
     PreviewContext(boolean withToken, String state, Runnable close) throws Exception {
         this.close = close;
-        client = new DonationAlertsClient("https://socket.donationalerts.ru:443", event -> {
+        client = new DonationAlertsClient(Constants.DonationAlertsEventServer, event -> {
         });
         forceState(ConnectionState.valueOf(state));
 

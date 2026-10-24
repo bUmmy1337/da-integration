@@ -20,8 +20,9 @@ You can download this from: [Releases](https://github.com/bummy1337/da-integrati
 Press **`=`** in game to open the menu (the key can be changed in *Controls*), or type `/da`.
 
 1. Go to **Connection** and click **Open token page**. Donation Alerts opens in your browser.
-2. Copy the secret token (or the link of the alert widget for OBS: the mod finds the token in it)
-   and click **Paste from clipboard**.
+2. Copy the **secret token** (*General settings → Secret token*, click *Show*), or the link of the alert widget
+   for OBS (`https://www.donationalerts.com/widget/alerts?...&token=...`): the mod finds the token in it.
+   Then click **Paste from clipboard**. This is not an API / OAuth token, no app registration is needed.
 3. That's it: the mod connects right away and reconnects by itself if the connection drops.
    Send a test alert from Donation Alerts and it shows up on the **Overview** page.
 
