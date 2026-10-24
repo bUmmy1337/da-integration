@@ -46,6 +46,8 @@ def lwjglNatives = {
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    // Gradle 9 no longer brings the launcher along
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.8.1'
 
     previewImplementation "io.github.spair:imgui-java-lwjgl3:${imguiVersion}"
     previewImplementation platform('org.lwjgl:lwjgl-bom:3.4.1')
