@@ -4,6 +4,7 @@ import net.bummy1337.daintegrate.Constants;
 import net.bummy1337.daintegrate.TokenStore;
 import net.bummy1337.daintegrate.configurations.SettingsDto;
 import net.bummy1337.daintegrate.configurations.TriggerDto;
+import net.bummy1337.daintegrate.ui.I18n;
 import net.bummy1337.daintegrate.ui.TriggerModel;
 import net.bummy1337.daintegrate.ui.UiContext;
 import net.bummy1337.dontaionalerts.AlertType;
@@ -40,43 +41,61 @@ class PreviewContext implements UiContext {
         else
             tokens.delete();
 
+        // Sample data follows the menu language, so English screenshots have English names
+        boolean ru = I18n.isRussian();
         settings = new SettingsDto();
-        var thanks = TriggerModel.create("Спасибо за донат");
+        var thanks = TriggerModel.create(ru ? "Спасибо за донат" : "Thanks for the donation");
         thanks.actions.clear();
-        thanks.actions.add(TriggerModel.Action.message("{username}, спасибо за {amount} {currency}! {message}", 0));
-        var night = TriggerModel.create("Ночь за 500+");
+        thanks.actions.add(TriggerModel.Action.message(ru ? "{username}, спасибо за {amount} {currency}! {message}" : "Thanks for {amount} {currency}, {username}! {message}", 0));
+        var night = TriggerModel.create(ru ? "Ночь за 500+" : "Night for 500+");
         night.from = 500;
-        night.currency = "RUB";
+        night.currency = ru ? "RUB" : "USD";
+        if (!ru)
+            night.from = 5;
         night.actions.clear();
         night.actions.add(TriggerModel.Action.command("time set night", 0));
         night.actions.add(TriggerModel.Action.command("summon zombie ~ ~ ~", 60));
-        var creeper = TriggerModel.create("Крипер за 1000");
+        var creeper = TriggerModel.create(ru ? "Крипер за 1000" : "Creeper for 10");
         creeper.from = 1000;
         creeper.to = 4999;
         creeper.currency = "RUB";
+        if (!ru) {
+            creeper.from = 10;
+            creeper.to = 49;
+            creeper.currency = "USD";
+        }
         creeper.actions.clear();
         var title = new TriggerModel.Action("daintegrate/handler/title", 0);
         title.fields.put("title", "{username}");
-        title.fields.put("subtitle", "призывает крипера!");
+        title.fields.put("subtitle", ru ? "призывает крипера!" : "summons a creeper!");
         creeper.actions.add(title);
         creeper.actions.add(new TriggerModel.Action("daintegrate/handler/sound", 0));
         creeper.actions.add(TriggerModel.Action.command("summon creeper ~ ~ ~2", 40));
-        var sub = TriggerModel.create("Подписка YouTube");
+        var sub = TriggerModel.create(ru ? "Подписка YouTube" : "YouTube subscription");
         sub.kind = TriggerModel.Kind.Subscribe;
         sub.actions.clear();
         sub.actions.add(TriggerModel.Action.command("give {playername} diamond 1", 0));
-        var points = TriggerModel.create("Баллы: прыжок");
+        var points = TriggerModel.create(ru ? "Баллы: прыжок" : "Points: jump");
         points.kind = TriggerModel.Kind.TwitchPoints;
         points.active = false;
         settings.triggers = new TriggerDto[]{thanks.toDto(), night.toDto(), creeper.toDto(), sub.toDto(), points.toDto()};
 
         if (!"Disconnected".equals(state)) {
-            event("Алексей", 150, "RUB", "Привет! Отличный стрим", AlertType.Donate, 600_000, false);
-            event("kotik_99", 1000, "RUB", "Давай крипера!", AlertType.Donate, 420_000, false);
-            event("streamfan", 5, "USD", "gl hf", AlertType.Donate, 300_000, false);
-            event("Мария", 0, null, null, AlertType.YouTubeSubscription, 180_000, false);
-            event("Тест", 100, "RUB", "Тестовое оповещение", AlertType.Donate, 60_000, true);
-            event("nightowl", 500, "RUB", "Включай ночь", AlertType.Donate, 12_000, false);
+            if (ru) {
+                event("Алексей", 150, "RUB", "Привет! Отличный стрим", AlertType.Donate, 600_000, false);
+                event("kotik_99", 1000, "RUB", "Давай крипера!", AlertType.Donate, 420_000, false);
+                event("streamfan", 5, "USD", "gl hf", AlertType.Donate, 300_000, false);
+                event("Мария", 0, null, null, AlertType.YouTubeSubscription, 180_000, false);
+                event("Тест", 100, "RUB", "Тестовое оповещение", AlertType.Donate, 60_000, true);
+                event("nightowl", 500, "RUB", "Включай ночь", AlertType.Donate, 12_000, false);
+            } else {
+                event("alex_plays", 3, "USD", "Hi! Great stream", AlertType.Donate, 600_000, false);
+                event("kitty_99", 10, "USD", "Spawn a creeper!", AlertType.Donate, 420_000, false);
+                event("streamfan", 150, "RUB", "gl hf", AlertType.Donate, 300_000, false);
+                event("Maria", 0, null, null, AlertType.YouTubeSubscription, 180_000, false);
+                event("Test", 1, "USD", "Test alert", AlertType.Donate, 60_000, true);
+                event("nightowl", 5, "USD", "Make it night!", AlertType.Donate, 12_000, false);
+            }
         }
     }
 
