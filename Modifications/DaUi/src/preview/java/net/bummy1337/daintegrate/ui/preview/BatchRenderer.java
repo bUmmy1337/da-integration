@@ -57,7 +57,10 @@ class BatchRenderer {
     void render(List<DrawBatches.Batch> batches, int framebufferWidth, int framebufferHeight, float guiScale) {
         glEnable(GL_BLEND);
         glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_CULL_FACE);
+        // Like the game's GUI pipelines: back faces are culled. The game's front faces are
+        // counter-clockwise on screen, which stays counter-clockwise after the y flip below
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
         glDisable(GL_DEPTH_TEST);
         glEnable(GL_SCISSOR_TEST);
         glUseProgram(program);
