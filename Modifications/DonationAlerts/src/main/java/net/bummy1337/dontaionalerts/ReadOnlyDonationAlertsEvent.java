@@ -2,9 +2,15 @@ package net.bummy1337.dontaionalerts;
 
 public class ReadOnlyDonationAlertsEvent {
     private final DonationAlertsEvent event;
+    private final long receivedAt;
 
     public ReadOnlyDonationAlertsEvent(DonationAlertsEvent event) {
         this.event = event;
+        this.receivedAt = System.currentTimeMillis();
+    }
+
+    public long getReceivedAt() {
+        return receivedAt;
     }
 
     public String getUserName() {

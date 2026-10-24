@@ -5,4 +5,6 @@ public class SettingsDto {
     public boolean disableSettingsUpdateMessage;
     public boolean disableWelcomeMessage;
     public boolean skipTestDonation;
+    public boolean disableAutoConnect;
+    public float uiScale;
 }

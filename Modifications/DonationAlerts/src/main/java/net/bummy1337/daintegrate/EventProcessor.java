@@ -20,29 +20,34 @@ public class EventProcessor implements IListener<ReadOnlyDonationAlertsEvent> {
     public void onValue(ReadOnlyDonationAlertsEvent value) {
         if (value.isTest() && DonationAlertsIntegrate.isSkipTestDonation())
             return;
+        getSenseTrigger(value).forEach(trigger -> run(value, trigger));
+    }
+
+    /** Executes the trigger's handlers for the event, honouring their delays. */
+    public void run(ReadOnlyDonationAlertsEvent value, TriggerDto trigger) {
+        System.out.println("Activate trigger: " + trigger.name);
+        if (trigger.handlers == null)
+            return;
         var timeSnapshot = currentTime;
-        getSenseTrigger(value).forEach(trigger -> {
-            System.out.println("Activate trigger: " + trigger.name);
-            for (var handler : trigger.handlers) {
-                if (handler.delay > 0)
-                {
-                    lock.lock();
-                    try {
-                        var scheduled = timeSnapshot + handler.delay;
-                        var array = queue.get(scheduled);
-                        if (array == null)
-                            array = new ArrayList<>();
-                        array.add(new ScheduledHandler(value, handler));
-                        queue.put(scheduled, array);
-                        continue;
-                    }
-                    finally {
-                        lock.unlock();
-                    }
+        for (var handler : trigger.handlers) {
+            if (handler.delay > 0)
+            {
+                lock.lock();
+                try {
+                    var scheduled = timeSnapshot + handler.delay;
+                    var array = queue.get(scheduled);
+                    if (array == null)
+                        array = new ArrayList<>();
+                    array.add(new ScheduledHandler(value, handler));
+                    queue.put(scheduled, array);
+                    continue;
                 }
-                execute(value, handler);
+                finally {
+                    lock.unlock();
+                }
             }
-        });
+            execute(value, handler);
+        }
     }
 
     private Stream<TriggerDto> getSenseTrigger(ReadOnlyDonationAlertsEvent event) {

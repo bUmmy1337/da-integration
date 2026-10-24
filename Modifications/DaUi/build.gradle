@@ -1,0 +1,72 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    imguiVersion = '1.92.7.1'
+}
+
+dependencies {
+    api project(path: ':DonationAlerts')
+    api "io.github.spair:imgui-java-binding:${imguiVersion}"
+
+    implementation('com.google.code.gson:gson:2.8.0')
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+// Standalone window that renders the menu with sample data, for working on the design
+// without starting Minecraft: gradle :DaUi:preview
+sourceSets {
+    preview {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    previewImplementation.extendsFrom implementation, api
+    previewRuntimeOnly.extendsFrom runtimeOnly
+}
+
+def lwjglNatives = {
+    def os = System.getProperty('os.name').toLowerCase()
+    if (os.contains('win')) return 'natives-windows'
+    if (os.contains('mac')) return System.getProperty('os.arch').contains('aarch64') ? 'natives-macos-arm64' : 'natives-macos'
+    return 'natives-linux'
+}()
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+    previewImplementation "io.github.spair:imgui-java-lwjgl3:${imguiVersion}"
+    previewImplementation platform('org.lwjgl:lwjgl-bom:3.4.1')
+    previewImplementation 'org.lwjgl:lwjgl'
+    previewImplementation 'org.lwjgl:lwjgl-glfw'
+    previewImplementation 'org.lwjgl:lwjgl-opengl'
+    previewRuntimeOnly "org.lwjgl:lwjgl::${lwjglNatives}"
+    previewRuntimeOnly "org.lwjgl:lwjgl-glfw::${lwjglNatives}"
+    previewRuntimeOnly "org.lwjgl:lwjgl-opengl::${lwjglNatives}"
+    previewRuntimeOnly "io.github.spair:imgui-java-natives-${lwjglNatives.replace('natives-', '').replace('-arm64', '')}:${imguiVersion}"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.register('preview', JavaExec) {
+    group = 'application'
+    description = 'Opens the menu in a standalone window with sample data'
+    classpath = sourceSets.preview.runtimeClasspath
+    mainClass = 'net.bummy1337.daintegrate.ui.preview.MenuPreview'
+    if (System.getProperty('os.name').toLowerCase().contains('mac'))
+        jvmArgs '-XstartOnFirstThread'
+}
