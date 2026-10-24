@@ -34,16 +34,16 @@ final class GameActions {
         if (minecraft.player == null)
             return;
         int stay = Math.max(1, Math.round(properties.seconds * 20));
-        minecraft.gui.setTimes(10, stay, 20);
-        minecraft.gui.setSubtitle(Component.literal(replace(properties.subtitle, event)));
-        minecraft.gui.setTitle(Component.literal(replace(properties.title, event)));
+        minecraft.gui.hud.setTimes(10, stay, 20);
+        minecraft.gui.hud.setSubtitle(Component.literal(replace(properties.subtitle, event)));
+        minecraft.gui.hud.setTitle(Component.literal(replace(properties.title, event)));
     }
 
     private static void actionBar(ReadOnlyDonationAlertsEvent event, ActionBarHandlerProperties properties) {
         var minecraft = Minecraft.getInstance();
         if (minecraft.player == null)
             return;
-        minecraft.gui.setOverlayMessage(Component.literal(replace(properties.text, event)), false);
+        minecraft.gui.hud.setOverlayMessage(Component.literal(replace(properties.text, event)), false);
     }
 
     private static void sound(ReadOnlyDonationAlertsEvent event, SoundHandlerProperties properties) {

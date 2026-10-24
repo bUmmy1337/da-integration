@@ -34,14 +34,3 @@ jobs:
           if-no-files-found: error
 
 
-      # Temporary: find where 26.3 keeps titles and the action bar message
-      - name: Inspect Minecraft API
-        if: failure()
-        run: |
-          JAR=$(find ~/.gradle/caches -name "minecraft-*merged*named*.jar" -o -name "minecraft-client*named*.jar" | grep -v sources | head -1)
-          [ -z "$JAR" ] && JAR=$(find ~/.gradle/caches/fabric-loom -name "*.jar" | grep -i minecraft | grep -v sources | head -1)
-          echo "jar: $JAR"
-          mkdir -p /tmp/mc && cd /tmp/mc && unzip -q -o "$JAR" 'net/*' 'com/mojang/*'
-          echo "=== Hud"; javap -p net/minecraft/client/gui/Hud.class | grep -iE "title|overlay|subtitle|times|public" | head -60 || true
-          echo "=== ClientPacketListener title handlers"
-          javap -p -c net/minecraft/client/multiplayer/ClientPacketListener.class | grep -A30 -E "void (setTitleText|setSubtitleText|setTitlesAnimation|setActionBarText)\(" | grep -E "invoke|void " | head -40 || true
