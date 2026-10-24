@@ -70,3 +70,7 @@ tasks.register('preview', JavaExec) {
     if (System.getProperty('os.name').toLowerCase().contains('mac'))
         jvmArgs '-XstartOnFirstThread'
 }
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}

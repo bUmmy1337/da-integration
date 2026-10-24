@@ -27,3 +27,13 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+// Java 21 bytecode, so the core also builds with older JDKs; the mod itself runs on 25
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
