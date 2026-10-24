@@ -5,27 +5,42 @@ import imgui.ImGuiStyle;
 import imgui.flag.ImGuiCol;
 
 /**
- * Dark theme with the Donation Alerts orange as the accent colour.
- * Colours are packed as 0xRRGGBB and converted to ImGui's ABGR on use.
+ * "Glass" theme: translucent dark surfaces over the game's blurred background,
+ * hairline white borders, white text at a few opacities and the logo's orange as accent.
+ * Colours are 0xRRGGBB plus a separate alpha, converted to ImGui's ABGR by {@link #col}.
  */
 public final class Theme {
-    public static final int Background = 0x0F1115;
-    public static final int Sidebar = 0x13161B;
-    public static final int Surface = 0x181B21;
-    public static final int SurfaceRaised = 0x1F232A;
-    public static final int SurfaceHover = 0x272C35;
-    public static final int Border = 0x2A2F38;
-    public static final int Text = 0xE8EAED;
-    public static final int TextSecondary = 0xA2A8B3;
-    public static final int TextMuted = 0x6B7280;
-    public static final int Accent = 0xF57D07;
-    public static final int AccentHover = 0xFF9330;
-    public static final int AccentActive = 0xD96A00;
+    public static final int Black = 0x000000;
+    public static final int White = 0xFFFFFF;
+
+    /** Window glass: black at this alpha over the blurred world. */
+    public static final int Glass = 0x101116;
+    public static final float WindowAlpha = 0.80f;
+    public static final float SidebarAlpha = 0.30f;
+    /** Cards: white at this alpha on top of the window glass. */
+    public static final float CardAlpha = 0.035f;
+    public static final float CardHoverAlpha = 0.07f;
+    public static final float FieldAlpha = 0.06f;
+    public static final float BorderAlpha = 0.08f;
+
+    public static final float TextAlpha = 0.92f;
+    public static final float TextSecondaryAlpha = 0.55f;
+    public static final float TextMutedAlpha = 0.32f;
+
+    public static final int Accent = 0xFF8A00;
+    public static final int AccentLight = 0xFFB01F;
+    public static final int AccentDark = 0xF26A00;
     public static final int Success = 0x34D399;
     public static final int Warning = 0xFBBF24;
-    public static final int Danger = 0xF87171;
+    public static final int Danger = 0xFF5A5F;
     public static final int Info = 0x60A5FA;
     public static final int Purple = 0xA78BFA;
+
+    // Opaque equivalents for places that need a solid colour (popups, combo lists)
+    public static final int Popup = 0x1C1C1E;
+    public static final int Text = 0xEDEDED;
+    public static final int TextSecondary = 0x8E8E93;
+    public static final int TextMuted = 0x5A5A5E;
 
     private Theme() {
     }
@@ -43,77 +58,81 @@ public final class Theme {
         return col(rgb, 1f);
     }
 
+    public static int white(float alpha) {
+        return col(White, alpha);
+    }
+
     public static void apply(float scale) {
         ImGuiStyle style = ImGui.getStyle();
         style.setWindowPadding(20, 20);
-        style.setFramePadding(10, 7);
+        style.setFramePadding(12, 8);
         style.setItemSpacing(10, 10);
         style.setItemInnerSpacing(8, 6);
-        style.setCellPadding(10, 7);
+        style.setCellPadding(12, 8);
         style.setIndentSpacing(18);
-        style.setScrollbarSize(10);
-        style.setWindowRounding(14);
-        style.setChildRounding(12);
-        style.setFrameRounding(8);
-        style.setPopupRounding(10);
+        style.setScrollbarSize(8);
+        style.setWindowRounding(18);
+        style.setChildRounding(14);
+        style.setFrameRounding(10);
+        style.setPopupRounding(14);
         style.setScrollbarRounding(8);
-        style.setGrabRounding(8);
-        style.setTabRounding(8);
+        style.setGrabRounding(10);
+        style.setTabRounding(10);
         style.setWindowBorderSize(1);
         style.setChildBorderSize(1);
         style.setPopupBorderSize(1);
         style.setFrameBorderSize(0);
         style.setWindowMinSize(32, 32);
-        style.setGrabMinSize(12);
+        style.setGrabMinSize(14);
         style.setButtonTextAlign(0.5f, 0.5f);
         style.setSelectableTextAlign(0f, 0.5f);
         if (scale != 1f)
             style.scaleAllSizes(scale);
 
-        set(style, ImGuiCol.Text, Text, 1f);
-        set(style, ImGuiCol.TextDisabled, TextMuted, 1f);
-        set(style, ImGuiCol.WindowBg, Background, 1f);
-        set(style, ImGuiCol.ChildBg, Surface, 1f);
-        set(style, ImGuiCol.PopupBg, SurfaceRaised, 0.98f);
-        set(style, ImGuiCol.Border, Border, 1f);
-        set(style, ImGuiCol.BorderShadow, 0, 0f);
-        set(style, ImGuiCol.FrameBg, SurfaceRaised, 1f);
-        set(style, ImGuiCol.FrameBgHovered, SurfaceHover, 1f);
-        set(style, ImGuiCol.FrameBgActive, SurfaceHover, 1f);
-        set(style, ImGuiCol.TitleBg, Sidebar, 1f);
-        set(style, ImGuiCol.TitleBgActive, Sidebar, 1f);
-        set(style, ImGuiCol.TitleBgCollapsed, Sidebar, 1f);
-        set(style, ImGuiCol.MenuBarBg, Sidebar, 1f);
-        set(style, ImGuiCol.ScrollbarBg, 0, 0f);
-        set(style, ImGuiCol.ScrollbarGrab, Border, 1f);
-        set(style, ImGuiCol.ScrollbarGrabHovered, SurfaceHover, 1f);
-        set(style, ImGuiCol.ScrollbarGrabActive, TextMuted, 1f);
+        set(style, ImGuiCol.Text, White, TextAlpha);
+        set(style, ImGuiCol.TextDisabled, White, TextMutedAlpha);
+        set(style, ImGuiCol.WindowBg, Glass, WindowAlpha);
+        set(style, ImGuiCol.ChildBg, White, CardAlpha);
+        set(style, ImGuiCol.PopupBg, Popup, 0.97f);
+        set(style, ImGuiCol.Border, White, BorderAlpha);
+        set(style, ImGuiCol.BorderShadow, Black, 0f);
+        set(style, ImGuiCol.FrameBg, White, FieldAlpha);
+        set(style, ImGuiCol.FrameBgHovered, White, 0.10f);
+        set(style, ImGuiCol.FrameBgActive, White, 0.12f);
+        set(style, ImGuiCol.TitleBg, Black, 0.6f);
+        set(style, ImGuiCol.TitleBgActive, Black, 0.6f);
+        set(style, ImGuiCol.TitleBgCollapsed, Black, 0.6f);
+        set(style, ImGuiCol.MenuBarBg, Black, 0.3f);
+        set(style, ImGuiCol.ScrollbarBg, Black, 0f);
+        set(style, ImGuiCol.ScrollbarGrab, White, 0.15f);
+        set(style, ImGuiCol.ScrollbarGrabHovered, White, 0.25f);
+        set(style, ImGuiCol.ScrollbarGrabActive, White, 0.35f);
         set(style, ImGuiCol.CheckMark, Accent, 1f);
-        set(style, ImGuiCol.SliderGrab, Accent, 1f);
-        set(style, ImGuiCol.SliderGrabActive, AccentHover, 1f);
-        set(style, ImGuiCol.Button, SurfaceRaised, 1f);
-        set(style, ImGuiCol.ButtonHovered, SurfaceHover, 1f);
-        set(style, ImGuiCol.ButtonActive, Border, 1f);
-        set(style, ImGuiCol.Header, Accent, 0.16f);
-        set(style, ImGuiCol.HeaderHovered, SurfaceHover, 1f);
-        set(style, ImGuiCol.HeaderActive, Accent, 0.24f);
-        set(style, ImGuiCol.Separator, Border, 1f);
+        set(style, ImGuiCol.SliderGrab, White, 0.95f);
+        set(style, ImGuiCol.SliderGrabActive, White, 1f);
+        set(style, ImGuiCol.Button, White, 0.08f);
+        set(style, ImGuiCol.ButtonHovered, White, 0.13f);
+        set(style, ImGuiCol.ButtonActive, White, 0.18f);
+        set(style, ImGuiCol.Header, White, 0.08f);
+        set(style, ImGuiCol.HeaderHovered, White, 0.10f);
+        set(style, ImGuiCol.HeaderActive, White, 0.14f);
+        set(style, ImGuiCol.Separator, White, BorderAlpha);
         set(style, ImGuiCol.SeparatorHovered, Accent, 0.6f);
         set(style, ImGuiCol.SeparatorActive, Accent, 1f);
-        set(style, ImGuiCol.ResizeGrip, 0, 0f);
+        set(style, ImGuiCol.ResizeGrip, Black, 0f);
         set(style, ImGuiCol.ResizeGripHovered, Accent, 0.5f);
         set(style, ImGuiCol.ResizeGripActive, Accent, 1f);
-        set(style, ImGuiCol.Tab, SurfaceRaised, 1f);
-        set(style, ImGuiCol.TabHovered, SurfaceHover, 1f);
-        set(style, ImGuiCol.TabSelected, Accent, 0.22f);
-        set(style, ImGuiCol.TableHeaderBg, SurfaceRaised, 1f);
-        set(style, ImGuiCol.TableBorderStrong, Border, 1f);
-        set(style, ImGuiCol.TableBorderLight, Border, 0.6f);
-        set(style, ImGuiCol.TableRowBg, 0, 0f);
-        set(style, ImGuiCol.TableRowBgAlt, 0xFFFFFF, 0.02f);
+        set(style, ImGuiCol.Tab, White, 0.06f);
+        set(style, ImGuiCol.TabHovered, White, 0.12f);
+        set(style, ImGuiCol.TabSelected, White, 0.14f);
+        set(style, ImGuiCol.TableHeaderBg, White, 0f);
+        set(style, ImGuiCol.TableBorderStrong, White, BorderAlpha);
+        set(style, ImGuiCol.TableBorderLight, White, 0.06f);
+        set(style, ImGuiCol.TableRowBg, Black, 0f);
+        set(style, ImGuiCol.TableRowBgAlt, White, 0.02f);
         set(style, ImGuiCol.TextSelectedBg, Accent, 0.35f);
         set(style, ImGuiCol.NavCursor, Accent, 0.8f);
-        set(style, ImGuiCol.ModalWindowDimBg, 0x000000, 0.55f);
+        set(style, ImGuiCol.ModalWindowDimBg, Black, 0.45f);
     }
 
     private static void set(ImGuiStyle style, int index, int rgb, float alpha) {

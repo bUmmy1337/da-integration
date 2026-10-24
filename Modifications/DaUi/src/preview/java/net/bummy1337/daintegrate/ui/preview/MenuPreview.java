@@ -4,6 +4,7 @@ import imgui.ImGui;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import net.bummy1337.daintegrate.ui.DaMenu;
+import net.bummy1337.daintegrate.ui.DrawBatches;
 import net.bummy1337.daintegrate.ui.I18n;
 import net.bummy1337.daintegrate.ui.ImGuiHost;
 import org.lwjgl.BufferUtils;
@@ -23,7 +24,8 @@ import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
  * <p>
  * Arguments: {@code --lang ru|en}, {@code --page Overview|Connection|Triggers|Settings|Help},
  * {@code --state Disconnected|Connected|Error}, {@code --no-token}, {@code --size 1280x800},
- * {@code --scale 1.0}, {@code --screenshot out.png} (renders a few frames, saves and exits).
+ * {@code --scale 1.0}, {@code --screenshot out.png} (renders a few frames, saves and exits),
+ * {@code --game-path 2} (draws through {@link BatchRenderer} at that GUI scale, like the game does).
  */
 public class MenuPreview {
     public static void main(String[] args) throws Exception {
@@ -35,6 +37,7 @@ public class MenuPreview {
         int width = 1280;
         int height = 800;
         float scale = 1f;
+        float gamePath = 0;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--lang" -> lang = args[++i];
@@ -43,6 +46,7 @@ public class MenuPreview {
                 case "--screenshot" -> screenshot = args[++i];
                 case "--no-token" -> token = false;
                 case "--scale" -> scale = Float.parseFloat(args[++i]);
+                case "--game-path" -> gamePath = Float.parseFloat(args[++i]);
                 case "--size" -> {
                     var parts = args[++i].split("x");
                     width = Integer.parseInt(parts[0]);
@@ -90,6 +94,7 @@ public class MenuPreview {
         glfw.init(window, true);
         gl3.init("#version 330 core");
 
+        var batchRenderer = gamePath > 0 ? new BatchRenderer() : null;
         var menu = new DaMenu(host, context);
         if (page != null)
             menu.open(DaMenu.Page.valueOf(page));
@@ -106,6 +111,7 @@ public class MenuPreview {
             glfw.newFrame();
             gl3.newFrame();
             host.beginFrame(fbWidth[0], fbHeight[0], ImGui.getIO().getDeltaTime());
+            drawBackdrop(fbWidth[0], fbHeight[0]);
             menu.render(fbWidth[0], fbHeight[0]);
             host.endFrame();
 
@@ -113,7 +119,10 @@ public class MenuPreview {
             // A blurred-world stand-in so the translucent backdrop reads like it will in game
             glClearColor(0.16f, 0.22f, 0.18f, 1f);
             glClear(GL_COLOR_BUFFER_BIT);
-            gl3.renderDrawData(ImGui.getDrawData());
+            if (batchRenderer != null)
+                batchRenderer.render(DrawBatches.build(ImGui.getDrawData(), gamePath), fbWidth[0], fbHeight[0], gamePath);
+            else
+                gl3.renderDrawData(ImGui.getDrawData());
 
             if (screenshot != null && ++frames == 6) {
                 save(fbWidth[0], fbHeight[0], new File(screenshot));
@@ -146,5 +155,31 @@ public class MenuPreview {
         }
         ImageIO.write(image, "png", file);
         System.out.println("Saved " + file.getAbsolutePath());
+    }
+
+    /** A soft, out-of-focus "world" (sky, sun, hills) standing in for the game's blurred background. */
+    private static void drawBackdrop(float w, float h) {
+        var draw = ImGui.getBackgroundDrawList();
+        draw.addRectFilledMultiColor(0, 0, w, h * 0.6f, abgr(0x6FA8DC), abgr(0x8CBCE8), abgr(0xB9D4E8), abgr(0x9CC3E0));
+        draw.addRectFilledMultiColor(0, h * 0.6f, w, h, abgr(0x4E7A3A), abgr(0x5B8A42), abgr(0x3A5E2C), abgr(0x34552A));
+        blob(draw, w * 0.78f, h * 0.22f, h * 0.30f, 0xFFE9B0, 0.55f);
+        blob(draw, w * 0.18f, h * 0.62f, h * 0.35f, 0x3F6B33, 0.8f);
+        blob(draw, w * 0.55f, h * 0.70f, h * 0.40f, 0x6B8F45, 0.6f);
+        blob(draw, w * 0.90f, h * 0.75f, h * 0.30f, 0x7A5A3A, 0.5f);
+        blob(draw, w * 0.35f, h * 0.25f, h * 0.25f, 0xFFFFFF, 0.25f);
+        draw.addRectFilled(0, 0, w, h, abgr(0x000000, 0.25f));
+    }
+
+    private static void blob(imgui.ImDrawList draw, float x, float y, float r, int rgb, float alpha) {
+        for (int i = 12; i >= 1; i--)
+            draw.addCircleFilled(x, y, r * i / 12f, abgr(rgb, alpha / 12f), 64);
+    }
+
+    private static int abgr(int rgb) {
+        return abgr(rgb, 1f);
+    }
+
+    private static int abgr(int rgb, float alpha) {
+        return net.bummy1337.daintegrate.ui.Theme.col(rgb, alpha);
     }
 }

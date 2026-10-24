@@ -149,10 +149,11 @@ class ConnectionPage {
             }
 
             Widgets.gap(4);
+            Widgets.hairline(-18 * s);
             var settings = context.getSettings();
             if (settings != null) {
                 boolean auto = !settings.disableAutoConnect;
-                if (ImGui.checkbox(I18n.t("conn.auto"), auto)) {
+                if (Widgets.toggleRow(I18n.t("conn.auto"), null, auto)) {
                     settings.disableAutoConnect = auto;
                     try {
                         context.saveSettings(settings);

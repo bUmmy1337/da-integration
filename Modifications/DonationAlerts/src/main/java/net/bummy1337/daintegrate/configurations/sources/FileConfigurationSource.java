@@ -156,6 +156,16 @@ public class FileConfigurationSource implements IConfigurationSource {
         thread.start();
     }
 
+    /** Re-reads the settings file even if it looks unchanged. */
+    public void reload() {
+        currentHash = null;
+        tryUpdate();
+    }
+
+    public File getFile() {
+        return new File(path, watchedFileName);
+    }
+
     private void tryUpdate() {
         try {
             String json = null;

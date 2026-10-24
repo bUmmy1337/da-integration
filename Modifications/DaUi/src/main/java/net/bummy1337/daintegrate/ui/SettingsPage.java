@@ -10,7 +10,6 @@ class SettingsPage {
     private final DaMenu menu;
     private final UiContext context;
     private String error;
-    private final float[] scaleSlider = new float[1];
 
     SettingsPage(DaMenu menu, UiContext context) {
         this.menu = menu;
@@ -21,60 +20,67 @@ class SettingsPage {
         float s = DaMenu.scale();
         Widgets.title(I18n.t("set.title"), I18n.t("set.subtitle"));
         var settings = context.getSettings();
-        float width = Math.min(ImGui.getContentRegionAvailX(), 720 * s);
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float available = Math.min(ImGui.getContentRegionAvailX(), 900 * s);
+        float column = (available - spacing) / 2;
 
-        if (settings != null && Widgets.beginCard("##behaviour", width, 0)) {
-            toggle(I18n.t("set.skipTest"), I18n.t("set.skipTest.desc"), settings.skipTestDonation, v -> settings.skipTestDonation = v);
-            Widgets.gap(4);
-            toggle(I18n.t("conn.auto"), null, !settings.disableAutoConnect, v -> settings.disableAutoConnect = !v);
-            Widgets.gap(4);
-            toggle(I18n.t("set.welcome"), null, !settings.disableWelcomeMessage, v -> settings.disableWelcomeMessage = !v);
-            Widgets.gap(8);
-
-            ImGui.alignTextToFramePadding();
-            ImGui.text(I18n.t("set.uiScale"));
-            ImGui.sameLine(200 * s);
-            scaleSlider[0] = settings.uiScale <= 0 ? 1f : settings.uiScale;
-            ImGui.setNextItemWidth(220 * s);
-            ImGui.sliderFloat("##scale", scaleSlider, 0.75f, 1.5f, "%.2fx");
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                settings.uiScale = Math.round(scaleSlider[0] * 20f) / 20f;
-                save(settings);
-            } else if (ImGui.isItemActive()) {
-                settings.uiScale = scaleSlider[0];
+        ImGui.beginGroup();
+        if (settings != null) {
+            if (Widgets.beginGroup("##behaviour", I18n.t("set.behaviour"), column)) {
+                toggle(I18n.t("set.skipTest"), I18n.t("set.skipTest.desc"), settings.skipTestDonation, v -> settings.skipTestDonation = v);
+                Widgets.gap(6);
+                toggle(I18n.t("conn.auto"), null, !settings.disableAutoConnect, v -> settings.disableAutoConnect = !v);
+                Widgets.gap(6);
+                toggle(I18n.t("set.welcome"), null, !settings.disableWelcomeMessage, v -> settings.disableWelcomeMessage = !v);
             }
-        }
-        if (settings != null)
             Widgets.endCard();
+        }
+        ImGui.endGroup();
+        ImGui.sameLine();
 
-        if (Widgets.beginCard("##files", width, 0)) {
-            Widgets.heading(I18n.t("set.files"));
+        ImGui.beginGroup();
+        if (settings != null) {
+            if (Widgets.beginGroup("##appearance", I18n.t("set.appearance"), column)) {
+                ImGui.text(I18n.t("set.uiScale"));
+                ImGui.sameLine(ImGui.getContentRegionMaxX() - ImGui.calcTextSizeX("1.50x"));
+                ImGui.textDisabled(String.format("%.2fx", settings.uiScale <= 0 ? 1f : settings.uiScale));
+                float current = settings.uiScale <= 0 ? 1f : settings.uiScale;
+                float value = Widgets.slider("##scale", current, 0.75f, 1.5f, ImGui.getContentRegionAvailX());
+                if (ImGui.isItemDeactivated()) {
+                    settings.uiScale = Math.round(value * 20f) / 20f;
+                    save(settings);
+                } else if (ImGui.isItemActive()) {
+                    settings.uiScale = value;
+                }
+            }
+            Widgets.endCard();
+        }
+
+        if (Widgets.beginGroup("##files", I18n.t("set.files"), column)) {
+            ImGui.pushTextWrapPos(0);
             ImGui.textDisabled(context.getSettingsFile().getAbsolutePath());
-            Widgets.gap(2);
-            if (Widgets.button(I18n.t("set.openConfig"), 0))
+            ImGui.popTextWrapPos();
+            Widgets.gap(4);
+            float half = (ImGui.getContentRegionAvailX() - spacing) / 2;
+            if (Widgets.button(I18n.t("set.openConfig"), half))
                 context.openFile(context.getSettingsFile());
             ImGui.sameLine();
-            if (Widgets.button(I18n.t("set.openFolder"), 0))
+            if (Widgets.button(I18n.t("set.openFolder"), half))
                 context.openFile(context.getSettingsFile().getParentFile());
-            ImGui.sameLine();
-            if (Widgets.button(I18n.t("set.reload"), 0))
+            if (Widgets.button(I18n.t("set.reload"), -1))
                 context.reloadSettings();
         }
         Widgets.endCard();
+        ImGui.endGroup();
 
         if (error != null)
             Widgets.colored(Theme.Danger, error);
     }
 
     private void toggle(String label, String description, boolean value, Consumer<Boolean> setter) {
-        if (ImGui.checkbox(label, value)) {
+        if (Widgets.toggleRow(label, description, value)) {
             setter.accept(!value);
             save(context.getSettings());
-        }
-        if (description != null) {
-            ImGui.indent(ImGui.getFrameHeight() + ImGui.getStyle().getItemInnerSpacingX());
-            ImGui.textDisabled(description);
-            ImGui.unindent(ImGui.getFrameHeight() + ImGui.getStyle().getItemInnerSpacingX());
         }
     }
 

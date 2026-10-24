@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static net.bummy1337.daintegrate.ui.Theme.col;
+import static net.bummy1337.daintegrate.ui.Theme.white;
 
 /**
  * List of triggers on the left, editor of the selected one on the right.
@@ -88,7 +89,7 @@ class TriggersPage {
         ImGui.endChild();
 
         ImGui.sameLine();
-        ImGui.pushStyleColor(ImGuiCol.ChildBg, col(Theme.Background));
+        ImGui.pushStyleColor(ImGuiCol.ChildBg, col(Theme.Black, 0f));
         ImGui.beginChild("##trigger-editor", 0, height, ImGuiChildFlags.None, 0);
         if (selected >= 0 && selected < working.size())
             renderEditor(working.get(selected));
@@ -205,9 +206,9 @@ class TriggersPage {
                 ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
 
             if (isSelected)
-                draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + rowHeight, col(Theme.Accent, 0.13f), 9 * s);
+                draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + rowHeight, white(0.09f), 10 * s);
             else if (hovered)
-                draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + rowHeight, col(Theme.SurfaceHover, 0.6f), 9 * s);
+                draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + rowHeight, white(0.045f), 10 * s);
 
             int kindColor = kindColor(model.kind);
             draw.addRectFilled(pos.x + 8 * s, pos.y + 12 * s, pos.x + 11 * s, pos.y + rowHeight - 12 * s, col(kindColor, model.active ? 1f : 0.35f), 2 * s);
@@ -220,7 +221,7 @@ class TriggersPage {
             draw.addText(textX, pos.y + 29 * s, col(Theme.TextMuted), clip(summary(model), width - 50 * s));
 
             float dotX = pos.x + width - 16 * s;
-            draw.addCircleFilled(dotX, pos.y + rowHeight / 2, 4 * s, col(model.active ? Theme.Success : Theme.Border));
+            draw.addCircleFilled(dotX, pos.y + rowHeight / 2, 4 * s, model.active ? col(Theme.Success) : white(0.2f));
             if (i < baseline.size() && !model.sameAs(baseline.get(i)) || i >= baseline.size())
                 draw.addCircleFilled(dotX - 12 * s, pos.y + rowHeight / 2, 3 * s, col(Theme.Accent));
         }
@@ -237,13 +238,22 @@ class TriggersPage {
         ImGui.pushID("editor" + selected);
 
         // Name and enabled toggle
-        float toggleWidth = 140 * s;
+        var enabledLabel = I18n.t("trg.enabled").toLowerCase();
+        float toggleWidth = 38 * s + ImGui.calcTextSizeX(enabledLabel) + 30 * s;
         ImGui.pushFont(DaMenu.fonts().heading(), DaMenu.fonts().heading().getLegacySize());
         model.name = Widgets.input("##name", I18n.t("trg.name"), model.name, ImGui.getContentRegionAvailX() - toggleWidth, 128);
+        float nameHeight = ImGui.getFrameHeight();
         ImGui.popFont();
+        ImGui.sameLine(0, 16 * s);
+        float y = ImGui.getCursorPosY() + (nameHeight - ImGui.getFrameHeight()) / 2;
+        ImGui.setCursorPosY(y);
+        ImGui.alignTextToFramePadding();
+        ImGui.pushStyleColor(ImGuiCol.Text, white(Theme.TextSecondaryAlpha));
+        ImGui.text(enabledLabel);
+        ImGui.popStyleColor();
         ImGui.sameLine();
-        ImGui.setCursorPosY(ImGui.getCursorPosY() + 4 * s);
-        if (ImGui.checkbox(I18n.t("trg.enabled"), model.active))
+        ImGui.setCursorPosY(y);
+        if (Widgets.toggle("##enabled", model.active))
             model.active = !model.active;
 
         Widgets.gap(4);
@@ -256,21 +266,15 @@ class TriggersPage {
 
     private void renderCondition(TriggerModel model) {
         float s = DaMenu.scale();
-        if (Widgets.beginCard("##when", 0, 0)) {
-            sectionLabel(I18n.t("trg.when"));
-
+        if (Widgets.beginGroup("##when", I18n.t("trg.when"), 0)) {
             var kinds = TriggerModel.Kind.values();
-            ImGui.alignTextToFramePadding();
-            ImGui.text(I18n.t("trg.event"));
-            ImGui.sameLine(110 * s);
-            ImGui.setNextItemWidth(260 * s);
-            if (ImGui.beginCombo("##kind", I18n.t("kind." + model.kind.name()))) {
-                for (var kind : kinds) {
-                    if (ImGui.selectable(I18n.t("kind." + kind.name()), kind == model.kind))
-                        model.kind = kind;
-                }
-                ImGui.endCombo();
-            }
+            var labels = new String[kinds.length];
+            for (int i = 0; i < kinds.length; i++)
+                labels[i] = I18n.t("seg." + kinds[i].name());
+            int picked = Widgets.segmented("##kind", labels, model.kind.ordinal(), ImGui.getContentRegionAvailX());
+            model.kind = kinds[picked];
+            Widgets.tooltip(I18n.t("kind." + model.kind.name()));
+            Widgets.gap(2);
 
             switch (model.kind) {
                 case Donate, TwitchBits, TwitchPoints -> {
@@ -321,8 +325,7 @@ class TriggersPage {
 
     private void renderActions(TriggerModel model) {
         float s = DaMenu.scale();
-        if (Widgets.beginCard("##then", 0, 0)) {
-            sectionLabel(I18n.t("trg.then"));
+        if (Widgets.beginGroup("##then", I18n.t("trg.then"), 0)) {
 
             if (model.actions.isEmpty())
                 Widgets.muted(I18n.t("trg.action.none"));
@@ -349,17 +352,14 @@ class TriggersPage {
                 var seconds = I18n.t("trg.action.seconds");
                 float controls = delayWidth + spacing + ImGui.calcTextSizeX(seconds) + 3 * (frame + spacing) + 10 * s;
 
-                ImGui.setNextItemWidth(Math.min(190 * s, blockWidth - controls - 30 * s));
-                var typeLabel = I18n.t(action.type == TriggerModel.ActionType.Message ? "trg.action.message" : "trg.action.command");
-                if (ImGui.beginCombo("##type", typeLabel)) {
-                    if (ImGui.selectable(I18n.t("trg.action.message"), action.type == TriggerModel.ActionType.Message))
-                        action.type = TriggerModel.ActionType.Message;
-                    if (ImGui.selectable(I18n.t("trg.action.command"), action.type == TriggerModel.ActionType.Command))
-                        action.type = TriggerModel.ActionType.Command;
-                    ImGui.endCombo();
-                }
+                var typeLine = ImGui.getCursorPosY();
+                var types = new String[]{I18n.t("seg.message"), I18n.t("seg.command")};
+                int type = Widgets.segmented("##type", types, action.type.ordinal(), Math.min(230 * s, blockWidth - controls - 30 * s));
+                action.type = TriggerModel.ActionType.values()[type];
 
+                // The segmented control is a little taller than a frame; centre the controls on it
                 ImGui.sameLine(blockWidth - controls);
+                ImGui.setCursorPosY(typeLine + 3 * s);
                 action.delayTicks = Math.round(number("##delay", action.delayTicks / 20f, false, delayWidth) * 20);
                 Widgets.tooltip(I18n.t("trg.action.delay"));
                 ImGui.sameLine(0, 4 * s);
@@ -392,10 +392,10 @@ class TriggersPage {
                 var blockEnd = ImGui.getCursorScreenPos();
                 boolean focused = focusedAction == i;
                 draw.addRectFilled(blockStart.x, blockStart.y, blockStart.x + blockWidth, blockEnd.y - ImGui.getStyle().getItemSpacingY() + 4 * s,
-                        col(Theme.SurfaceRaised, 0.55f), 10 * s);
+                        white(0.035f), 12 * s);
                 if (focused)
                     draw.addRect(blockStart.x, blockStart.y, blockStart.x + blockWidth, blockEnd.y - ImGui.getStyle().getItemSpacingY() + 4 * s,
-                            col(Theme.Accent, 0.45f), 10 * s);
+                            col(Theme.Accent, 0.45f), 12 * s);
                 draw.channelsMerge();
                 ImGui.dummy(0, 2 * s);
 
@@ -516,12 +516,6 @@ class TriggersPage {
         toastUntil = ImGui.getTime() + 3;
     }
 
-    private static void sectionLabel(String text) {
-        ImGui.pushStyleColor(ImGuiCol.Text, col(Theme.TextMuted));
-        Widgets.bold(text.toUpperCase());
-        ImGui.popStyleColor();
-    }
-
     private static boolean chip(String text) {
         float s = DaMenu.scale();
         var draw = ImGui.getWindowDrawList();
@@ -533,7 +527,7 @@ class TriggersPage {
         if (hovered)
             ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
         draw.addRectFilled(pos.x, pos.y, pos.x + w, pos.y + h, col(Theme.Accent, hovered ? 0.25f : 0.12f), h / 2);
-        draw.addText(pos.x + 8 * s, pos.y + 3 * s, col(Theme.AccentHover), text);
+        draw.addText(pos.x + 8 * s, pos.y + 3 * s, col(Theme.AccentLight), text);
         return clicked;
     }
 
@@ -545,9 +539,9 @@ class TriggersPage {
         boolean clicked = ImGui.invisibleButton(id, size, size);
         boolean hovered = ImGui.isItemHovered();
         ImGui.endDisabled();
-        int color = !enabled ? Theme.Border : icon == Icons.Kind.Trash && hovered ? Theme.Danger : hovered ? Theme.Text : Theme.TextSecondary;
-        draw.addRectFilled(pos.x, pos.y, pos.x + size, pos.y + size, col(hovered && enabled ? Theme.SurfaceHover : Theme.SurfaceRaised), ImGui.getStyle().getFrameRounding());
-        Icons.draw(draw, icon, pos.x + size / 2, pos.y + size / 2, size * 0.38f, col(color));
+        int color = !enabled ? white(0.18f) : icon == Icons.Kind.Trash && hovered ? col(Theme.Danger) : white(hovered ? Theme.TextAlpha : Theme.TextSecondaryAlpha);
+        draw.addCircleFilled(pos.x + size / 2, pos.y + size / 2, size / 2, white(hovered && enabled ? 0.10f : 0.05f));
+        Icons.draw(draw, icon, pos.x + size / 2, pos.y + size / 2, size * 0.38f, color);
         if (hovered && enabled)
             ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
         return clicked && enabled;

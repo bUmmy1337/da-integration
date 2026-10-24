@@ -48,7 +48,7 @@ class OverviewPage {
                 last == null ? I18n.t("never") : formatAmount(last), Theme.Purple);
 
         Widgets.gap(10);
-        Widgets.heading(I18n.t("overview.recent"));
+        Widgets.caption(I18n.t("overview.recent"));
         Widgets.gap(2);
 
         if (events.isEmpty()) {
@@ -65,12 +65,14 @@ class OverviewPage {
         int flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
         if (ImGui.beginTable("##events", 5, flags, 0, ImGui.getContentRegionAvailY())) {
             ImGui.tableSetupScrollFreeze(0, 1);
-            ImGui.tableSetupColumn(I18n.t("col.time"), ImGuiTableColumnFlags.WidthFixed, 80 * s);
-            ImGui.tableSetupColumn(I18n.t("col.type"), ImGuiTableColumnFlags.WidthFixed, 150 * s);
-            ImGui.tableSetupColumn(I18n.t("col.from"), ImGuiTableColumnFlags.WidthStretch, 1f);
-            ImGui.tableSetupColumn(I18n.t("col.amount"), ImGuiTableColumnFlags.WidthFixed, 110 * s);
-            ImGui.tableSetupColumn(I18n.t("col.message"), ImGuiTableColumnFlags.WidthStretch, 2f);
+            ImGui.tableSetupColumn(I18n.t("col.time").toLowerCase(), ImGuiTableColumnFlags.WidthFixed, 80 * s);
+            ImGui.tableSetupColumn(I18n.t("col.type").toLowerCase(), ImGuiTableColumnFlags.WidthFixed, 150 * s);
+            ImGui.tableSetupColumn(I18n.t("col.from").toLowerCase(), ImGuiTableColumnFlags.WidthStretch, 1f);
+            ImGui.tableSetupColumn(I18n.t("col.amount").toLowerCase(), ImGuiTableColumnFlags.WidthFixed, 110 * s);
+            ImGui.tableSetupColumn(I18n.t("col.message").toLowerCase(), ImGuiTableColumnFlags.WidthStretch, 2f);
+            ImGui.pushStyleColor(ImGuiCol.Text, Theme.white(Theme.TextMutedAlpha));
             ImGui.tableHeadersRow();
+            ImGui.popStyleColor();
             for (int i = events.size() - 1; i >= 0; i--) {
                 var event = events.get(i);
                 ImGui.tableNextRow(0, 30 * s);
@@ -119,14 +121,22 @@ class OverviewPage {
     private void statCard(String id, float width, String label, String value, int accent) {
         float s = DaMenu.scale();
         if (Widgets.beginCard(id, width, 92 * s)) {
-            var draw = ImGui.getWindowDrawList();
-            var min = ImGui.getWindowPos();
-            draw.addRectFilled(min.x, min.y + 16 * s, min.x + 3 * s, min.y + 92 * s - 16 * s, col(accent), 2 * s);
-            ImGui.pushStyleColor(ImGuiCol.Text, col(Theme.TextSecondary));
-            ImGui.text(label);
-            ImGui.popStyleColor();
+            Widgets.statusDot(accent, false);
+            Widgets.caption(label);
             Widgets.gap(2);
-            Widgets.font(DaMenu.fonts().title(), () -> ImGui.text(value));
+            // Numbers use the big title font; long words (like a status) drop to the heading font
+            var big = DaMenu.fonts().title();
+            ImGui.pushFont(big, big.getLegacySize());
+            boolean fits = ImGui.calcTextSizeX(value) <= ImGui.getContentRegionAvailX();
+            ImGui.popFont();
+            if (fits) {
+                Widgets.font(big, () -> ImGui.text(value));
+            } else {
+                Widgets.gap(6);
+                ImGui.pushStyleColor(ImGuiCol.Text, col(accent));
+                Widgets.font(DaMenu.fonts().heading(), () -> ImGui.text(value));
+                ImGui.popStyleColor();
+            }
         }
         Widgets.endCard();
     }

@@ -2,6 +2,7 @@ package net.bummy1337.daintegrate.ui;
 
 import imgui.ImGui;
 import imgui.flag.ImDrawFlags;
+import imgui.flag.ImGuiChildFlags;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
@@ -75,7 +76,7 @@ public class DaMenu {
                 | ImGuiWindowFlags.NoBringToFrontOnFocus);
         ImGui.popStyleVar();
 
-        renderSidebar(220 * s, height);
+        renderSidebar(230 * s, height);
         ImGui.sameLine(0, 0);
         renderContent();
 
@@ -87,18 +88,30 @@ public class DaMenu {
 
     private void renderSidebar(float width, float height) {
         float s = scale();
+        var draw = ImGui.getWindowDrawList();
         var origin = ImGui.getCursorScreenPos();
         float rounding = ImGui.getStyle().getWindowRounding();
-        ImGui.getWindowDrawList().addRectFilled(origin.x, origin.y, origin.x + width, origin.y + height, col(Theme.Sidebar), rounding,
+        draw.addRectFilled(origin.x, origin.y, origin.x + width, origin.y + height, col(Theme.Black, Theme.SidebarAlpha), rounding,
                 ImDrawFlags.RoundCornersLeft);
+        // Hairline that fades out at both ends
+        float lineX = origin.x + width;
+        float third = height / 3;
+        draw.addRectFilledMultiColor(lineX - 1, origin.y, lineX, origin.y + third,
+                Theme.white(0), Theme.white(0), Theme.white(0.1f), Theme.white(0.1f));
+        draw.addRectFilled(lineX - 1, origin.y + third, lineX, origin.y + third * 2, Theme.white(0.1f));
+        draw.addRectFilledMultiColor(lineX - 1, origin.y + third * 2, lineX, origin.y + height,
+                Theme.white(0.1f), Theme.white(0.1f), Theme.white(0), Theme.white(0));
+
         ImGui.pushStyleColor(ImGuiCol.ChildBg, 0);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 14 * s, 18 * s);
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0);
-        ImGui.beginChild("##sidebar", width, height, imgui.flag.ImGuiChildFlags.AlwaysUseWindowPadding, ImGuiWindowFlags.NoScrollbar);
-        ImGui.popStyleVar(2);
+        ImGui.pushStyleColor(ImGuiCol.Border, 0);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 16 * s, 20 * s);
+        ImGui.beginChild("##sidebar", width, height, ImGuiChildFlags.AlwaysUseWindowPadding, ImGuiWindowFlags.NoScrollbar);
+        ImGui.popStyleVar();
 
         renderLogo();
-        Widgets.gap(18);
+        Widgets.gap(22);
+        Widgets.caption(I18n.t("nav.section"));
+        Widgets.gap(2);
 
         navItem(Page.Overview, Icons.Kind.Home);
         navItem(Page.Connection, Icons.Kind.Plug);
@@ -106,16 +119,27 @@ public class DaMenu {
         navItem(Page.Settings, Icons.Kind.Gear);
         navItem(Page.Help, Icons.Kind.Question);
 
-        // Connection summary pinned to the bottom of the sidebar
+        renderStatusWidget(height);
+
+        ImGui.endChild();
+        ImGui.popStyleColor(2);
+    }
+
+    /** Small glass card at the bottom of the sidebar, in the spirit of a system status widget. */
+    private void renderStatusWidget(float sidebarHeight) {
+        float s = scale();
         var client = context.getClient();
         var state = client.getState();
-        float boxHeight = 92 * s;
-        ImGui.setCursorPosY(height - boxHeight - 18 * s);
-        ImGui.pushStyleColor(ImGuiCol.ChildBg, col(Theme.Surface));
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 12 * s, 12 * s);
-        ImGui.beginChild("##sidebar-status", 0, boxHeight, imgui.flag.ImGuiChildFlags.Borders | imgui.flag.ImGuiChildFlags.AlwaysUseWindowPadding, ImGuiWindowFlags.NoScrollbar);
+        float boxHeight = 104 * s;
+        ImGui.setCursorPosY(sidebarHeight - boxHeight - 20 * s);
+        ImGui.pushStyleColor(ImGuiCol.ChildBg, Theme.white(Theme.CardAlpha));
+        ImGui.pushStyleColor(ImGuiCol.Border, Theme.white(Theme.BorderAlpha));
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 14 * s, 12 * s);
+        ImGui.beginChild("##sidebar-status", 0, boxHeight, ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysUseWindowPadding, ImGuiWindowFlags.NoScrollbar);
         ImGui.popStyleVar();
-        Widgets.statusDot(Widgets.stateColor(state), state != ConnectionState.Disconnected && state != ConnectionState.Error);
+
+        Widgets.caption("Donation Alerts");
+        Widgets.statusDot(Widgets.stateColor(state), state == ConnectionState.Connected || state == ConnectionState.Connecting || state == ConnectionState.Reconnecting);
         ImGui.text(I18n.t("state." + state.name()));
         float buttonWidth = ImGui.getContentRegionAvailX();
         if (state == ConnectionState.Disconnected || state == ConnectionState.Error) {
@@ -125,29 +149,27 @@ public class DaMenu {
             client.disconnect();
         }
         ImGui.endChild();
-        ImGui.popStyleColor();
-
-        ImGui.endChild();
-        ImGui.popStyleColor();
-
-        // Separator line between sidebar and content
-        var min = ImGui.getItemRectMin();
-        var max = ImGui.getItemRectMax();
-        ImGui.getWindowDrawList().addLine(max.x, min.y, max.x, max.y, col(Theme.Border), 1f);
+        ImGui.popStyleColor(2);
     }
 
     private void renderLogo() {
         float s = scale();
         var draw = ImGui.getWindowDrawList();
         var pos = ImGui.getCursorScreenPos();
-        float size = 34 * s;
-        draw.addRectFilled(pos.x, pos.y, pos.x + size, pos.y + size, col(Theme.Accent), 10 * s);
-        Icons.draw(draw, Icons.Kind.Heart, pos.x + size / 2, pos.y + size / 2, 15 * s, col(0xFFFFFF));
+        float size = 40 * s;
+        // Soft glow under the app icon
+        for (int i = 3; i >= 1; i--)
+            draw.addRectFilled(pos.x - i * 2 * s, pos.y - i * 2 * s + 3 * s, pos.x + size + i * 2 * s, pos.y + size + i * 2 * s + 3 * s,
+                    col(Theme.Accent, 0.05f), 12 * s + i * 2 * s);
+        draw.addImageRounded(host.logo(size), pos.x, pos.y, pos.x + size, pos.y + size, 0, 0, 1, 1, col(Theme.White), 11 * s);
+        draw.addRect(pos.x, pos.y, pos.x + size, pos.y + size, Theme.white(0.12f), 11 * s);
         ImGui.dummy(size, size);
-        ImGui.sameLine(0, 10 * s);
+        ImGui.sameLine(0, 12 * s);
         ImGui.beginGroup();
+        ImGui.setCursorPosY(ImGui.getCursorPosY() + 2 * s);
         Widgets.bold("DA Integrate");
-        ImGui.pushStyleColor(ImGuiCol.Text, col(Theme.TextMuted));
+        ImGui.setCursorPosY(ImGui.getCursorPosY() - 8 * s);
+        ImGui.pushStyleColor(ImGuiCol.Text, Theme.white(Theme.TextMutedAlpha));
         ImGui.text(I18n.t("logo.subtitle"));
         ImGui.popStyleColor();
         ImGui.endGroup();
@@ -160,7 +182,7 @@ public class DaMenu {
         var draw = ImGui.getWindowDrawList();
         var pos = ImGui.getCursorScreenPos();
         float width = ImGui.getContentRegionAvailX();
-        float height = 38 * s;
+        float height = 40 * s;
 
         ImGui.pushID(target.name());
         boolean clicked = ImGui.invisibleButton("##nav", width, height);
@@ -169,32 +191,41 @@ public class DaMenu {
         if (hovered)
             ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
 
-        if (selected)
-            draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + height, col(Theme.Accent, 0.14f), 9 * s);
-        else if (hovered)
-            draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + height, col(Theme.SurfaceHover, 0.7f), 9 * s);
-        if (selected)
-            draw.addRectFilled(pos.x, pos.y + 9 * s, pos.x + 3 * s, pos.y + height - 9 * s, col(Theme.Accent), 2 * s);
+        if (selected) {
+            draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + height, Theme.white(0.09f), 12 * s);
+            draw.addRect(pos.x, pos.y, pos.x + width, pos.y + height, Theme.white(0.08f), 12 * s);
+        } else if (hovered) {
+            draw.addRectFilled(pos.x, pos.y, pos.x + width, pos.y + height, Theme.white(0.05f), 12 * s);
+        }
 
-        int textColor = selected ? Theme.Text : hovered ? Theme.Text : Theme.TextSecondary;
-        int iconColor = selected ? Theme.Accent : textColor;
-        Icons.draw(draw, icon, pos.x + 22 * s, pos.y + height / 2, 16 * s, col(iconColor));
-        draw.addText(pos.x + 42 * s, pos.y + (height - ImGui.getTextLineHeight()) / 2, col(textColor), label);
+        int textColor = selected || hovered ? Theme.white(Theme.TextAlpha) : Theme.white(Theme.TextSecondaryAlpha);
+        // iOS-style icon tile
+        float tile = 26 * s;
+        float tileX = pos.x + 8 * s;
+        float tileY = pos.y + (height - tile) / 2;
+        if (selected)
+            draw.addRectFilled(tileX, tileY, tileX + tile, tileY + tile, col(Theme.Accent), 8 * s);
+        else
+            draw.addRectFilled(tileX, tileY, tileX + tile, tileY + tile, Theme.white(0.07f), 8 * s);
+        Icons.draw(draw, icon, tileX + tile / 2, tileY + tile / 2, 13 * s, selected ? col(Theme.White) : textColor);
+        draw.addText(tileX + tile + 12 * s, pos.y + (height - ImGui.getTextLineHeight()) / 2, textColor, label);
 
         if (target == Page.Triggers && triggers.isDirty())
             draw.addCircleFilled(pos.x + width - 14 * s, pos.y + height / 2, 3.5f * s, col(Theme.Accent));
 
         if (clicked)
             page = target;
-        ImGui.dummy(0, 2 * s);
+        ImGui.dummy(0, 1 * s);
     }
 
     private void renderContent() {
         float s = scale();
         ImGui.pushStyleColor(ImGuiCol.ChildBg, 0);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 28 * s, 24 * s);
-        ImGui.beginChild("##content", 0, 0, imgui.flag.ImGuiChildFlags.AlwaysUseWindowPadding, 0);
+        ImGui.pushStyleColor(ImGuiCol.Border, 0);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 30 * s, 26 * s);
+        ImGui.beginChild("##content", 0, 0, ImGuiChildFlags.AlwaysUseWindowPadding, 0);
         ImGui.popStyleVar();
+        ImGui.popStyleColor(2);
 
         renderCloseButton();
 
@@ -207,24 +238,23 @@ public class DaMenu {
         }
 
         ImGui.endChild();
-        ImGui.popStyleColor();
     }
 
     private void renderCloseButton() {
         float s = scale();
         float size = 30 * s;
         var cursor = ImGui.getCursorPos();
-        ImGui.setCursorPos(ImGui.getWindowWidth() - size - 14 * s, 14 * s);
+        ImGui.setCursorPos(ImGui.getWindowWidth() - size - 16 * s, 16 * s);
         var draw = ImGui.getWindowDrawList();
         var pos = ImGui.getCursorScreenPos();
         boolean clicked = ImGui.invisibleButton("##close", size, size);
         boolean hovered = ImGui.isItemHovered();
+        draw.addCircleFilled(pos.x + size / 2, pos.y + size / 2, size / 2, Theme.white(hovered ? 0.14f : 0.07f));
         if (hovered) {
-            draw.addRectFilled(pos.x, pos.y, pos.x + size, pos.y + size, col(Theme.SurfaceHover), 8 * s);
             ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
             ImGui.setTooltip(I18n.t("close") + " (Esc)");
         }
-        Icons.draw(draw, Icons.Kind.Close, pos.x + size / 2, pos.y + size / 2, 12 * s, col(hovered ? Theme.Text : Theme.TextSecondary));
+        Icons.draw(draw, Icons.Kind.Close, pos.x + size / 2, pos.y + size / 2, 9 * s, Theme.white(hovered ? 0.9f : 0.55f));
         ImGui.setCursorPos(cursor.x, cursor.y);
         if (clicked)
             context.close();

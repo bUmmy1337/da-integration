@@ -46,6 +46,7 @@ public final class I18n {
         add("nav.triggers", "Triggers", "Триггеры");
         add("nav.settings", "Settings", "Настройки");
         add("nav.help", "Help", "Справка");
+        add("nav.section", "Menu", "Меню");
 
         add("state.Disconnected", "Disconnected", "Не подключено");
         add("state.Connecting", "Connecting…", "Подключение…");
@@ -142,6 +143,13 @@ public final class I18n {
         add("trg.copySuffix", " (copy)", " (копия)");
 
         add("kind.Any", "Any event", "Любое событие");
+        add("seg.Any", "any", "любое");
+        add("seg.Donate", "donation", "донат");
+        add("seg.Subscribe", "subscription", "подписка");
+        add("seg.TwitchBits", "bits", "биты");
+        add("seg.TwitchPoints", "points", "баллы");
+        add("seg.message", "message", "сообщение");
+        add("seg.command", "command", "команда");
         add("kind.Donate", "Donation", "Донат");
         add("kind.Subscribe", "Subscription", "Подписка");
         add("kind.TwitchBits", "Twitch Bits", "Twitch Bits");
@@ -160,6 +168,8 @@ public final class I18n {
         add("set.welcome", "Show tips in chat when joining a world", "Показывать подсказки в чате при входе в мир");
         add("set.uiScale", "Menu scale", "Масштаб меню");
         add("set.files", "Files", "Файлы");
+        add("set.behaviour", "Behaviour", "Поведение");
+        add("set.appearance", "Appearance", "Внешний вид");
         add("set.openConfig", "Open settings.yaml", "Открыть settings.yaml");
         add("set.openFolder", "Open folder", "Открыть папку");
         add("set.reload", "Reload from file", "Перечитать файл");
@@ -172,14 +182,25 @@ public final class I18n {
         add("help.ph.message", "donation message", "сообщение доната");
         add("help.ph.playername", "your nickname in Minecraft", "ваш ник в Minecraft");
         add("help.keys", "Keys", "Клавиши");
-        add("help.keys.open", "Open this menu: %s (change in Controls)", "Открыть это меню: %s (меняется в «Управлении»)");
-        add("help.keys.save", "Save changes: Ctrl+S", "Сохранить изменения: Ctrl+S");
+        add("help.keys.open.short", "open this menu", "открыть меню");
+        add("help.keys.save.short", "save triggers", "сохранить триггеры");
+        add("help.keys.close.short", "close", "закрыть");
         add("help.commands", "Chat commands", "Команды чата");
-        add("help.cmd.connect", "/da connect, connect", "/da connect, подключиться");
-        add("help.cmd.disconnect", "/da disconnect, disconnect", "/da disconnect, отключиться");
-        add("help.cmd.status", "/da status, connection status", "/da status, статус подключения");
-        add("help.cmd.set", "/da set, save the token or link from the clipboard and connect", "/da set, взять токен или ссылку из буфера и подключиться");
+        add("help.cmd.set.short", "token from clipboard", "токен из буфера");
+        add("help.cmd.connect.short", "connect", "подключиться");
+        add("help.cmd.disconnect.short", "disconnect", "отключиться");
+        add("help.cmd.status.short", "connection status", "статус подключения");
         add("help.guide", "Open the guide on GitHub", "Открыть руководство на GitHub");
+
+        add("chat.connected", "Connected to Donation Alerts", "Подключено к Donation Alerts");
+        add("chat.disconnected", "Disconnected from Donation Alerts", "Отключено от Donation Alerts");
+        add("chat.error", "Could not connect to Donation Alerts: %s. Retrying…", "Не удалось подключиться к Donation Alerts: %s. Пробуем снова…");
+        add("chat.status", "Status: %s", "Статус: %s");
+        add("chat.tokenSaved", "Token saved, connecting…", "Токен сохранён, подключаемся…");
+        add("chat.tokenInvalid", "The clipboard has no token or Donation Alerts link", "В буфере обмена нет токена или ссылки Donation Alerts");
+        add("chat.noToken", "Donation Alerts is not connected yet. ", "Donation Alerts ещё не подключён. ");
+        add("chat.openMenu", "Open the menu (%s)", "Открыть меню (%s)");
+        add("chat.welcome", "Menu: press %s. ", "Меню: клавиша %s. ");
 
         add("close", "Close", "Закрыть");
         add("cancel", "Cancel", "Отмена");

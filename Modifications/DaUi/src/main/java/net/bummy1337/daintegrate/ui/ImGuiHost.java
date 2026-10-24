@@ -5,13 +5,19 @@ import imgui.ImFontConfig;
 import imgui.ImFontGlyphRangesBuilder;
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.callback.ImStrConsumer;
+import imgui.callback.ImStrSupplier;
 import imgui.flag.ImGuiBackendFlags;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.type.ImInt;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Owns the ImGui context, fonts and theme. The platform layer (Minecraft or the preview)
@@ -27,14 +33,19 @@ public class ImGuiHost {
 
     public static final String FontResource = "/assets/daintegrate/fonts/Inter-Regular.otf";
     public static final String FontBoldResource = "/assets/daintegrate/fonts/Inter-SemiBold.otf";
+    public static final String FontDisplayResource = "/assets/daintegrate/fonts/Inter-ExtraBold.otf";
 
-    public static final float BaseFontSize = 16f;
-    public static final float TitleFontSize = 26f;
-    public static final float HeadingFontSize = 19f;
+    public static final float BaseFontSize = 15f;
+    public static final float TitleFontSize = 32f;
+    public static final float HeadingFontSize = 17f;
 
     private final FontTextureUploader uploader;
     private final byte[] regularFont;
     private final byte[] boldFont;
+    private final byte[] displayFont;
+
+    private static final int[] LogoSizes = {48, 72, 96, 144};
+    private final long[] logoTextures = new long[LogoSizes.length];
 
     private ImFont regular;
     private ImFont bold;
@@ -47,6 +58,7 @@ public class ImGuiHost {
         this.uploader = uploader;
         this.regularFont = readResource(FontResource);
         this.boldFont = readResource(FontBoldResource);
+        this.displayFont = readResource(FontDisplayResource);
 
         ImGui.createContext();
         var io = ImGui.getIO();
@@ -54,6 +66,25 @@ public class ImGuiHost {
         io.addConfigFlags(ImGuiConfigFlags.NavEnableKeyboard);
         io.addBackendFlags(ImGuiBackendFlags.RendererHasVtxOffset);
         io.setConfigWindowsMoveFromTitleBarOnly(true);
+        // Ctrl shortcuts on every OS, like the rest of Minecraft's text fields
+        io.setConfigMacOSXBehaviors(false);
+    }
+
+    /** Lets ImGui text fields copy and paste through the platform clipboard. */
+    public void setClipboard(Supplier<String> get, Consumer<String> set) {
+        io().setGetClipboardTextFn(new ImStrSupplier() {
+            @Override
+            public String get() {
+                var text = get.get();
+                return text == null ? "" : text;
+            }
+        });
+        io().setSetClipboardTextFn(new ImStrConsumer() {
+            @Override
+            public void accept(String text) {
+                set.accept(text);
+            }
+        });
     }
 
     public ImGuiIO io() {
@@ -80,7 +111,7 @@ public class ImGuiHost {
         regular = addFont(regularFont, BaseFontSize * scale, ranges);
         bold = addFont(boldFont, BaseFontSize * scale, ranges);
         heading = addFont(boldFont, HeadingFontSize * scale, ranges);
-        title = addFont(boldFont, TitleFontSize * scale, ranges);
+        title = addFont(displayFont, TitleFontSize * scale, ranges);
         atlas.build();
         io().setFontDefault(regular);
 
@@ -127,10 +158,50 @@ public class ImGuiHost {
         return title;
     }
 
+    /** The logo texture closest to (and not smaller than) the given pixel size. */
+    public long logo(float pixelSize) {
+        int index = LogoSizes.length - 1;
+        for (int i = 0; i < LogoSizes.length; i++) {
+            if (LogoSizes[i] >= pixelSize) {
+                index = i;
+                break;
+            }
+        }
+        if (logoTextures[index] == 0)
+            logoTextures[index] = loadImage("/assets/daintegrate/textures/logo_" + LogoSizes[index] + ".png");
+        return logoTextures[index];
+    }
+
+    private long loadImage(String path) {
+        try (InputStream stream = ImGuiHost.class.getResourceAsStream(path)) {
+            if (stream == null)
+                throw new IllegalStateException("Missing resource " + path);
+            BufferedImage image = ImageIO.read(stream);
+            int width = image.getWidth();
+            int height = image.getHeight();
+            var pixels = ByteBuffer.allocateDirect(width * height * 4);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int argb = image.getRGB(x, y);
+                    pixels.put((byte) (argb >> 16)).put((byte) (argb >> 8)).put((byte) argb).put((byte) (argb >>> 24));
+                }
+            }
+            pixels.flip();
+            return uploader.upload(pixels, width, height);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read " + path, e);
+        }
+    }
+
     public void dispose() {
         if (fontTexture != 0)
             uploader.release(fontTexture);
         fontTexture = 0;
+        for (int i = 0; i < logoTextures.length; i++) {
+            if (logoTextures[i] != 0)
+                uploader.release(logoTextures[i]);
+            logoTextures[i] = 0;
+        }
         ImGui.destroyContext();
     }
 
