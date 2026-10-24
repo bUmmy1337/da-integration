@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags: ['*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Modifications
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: current
+
+      - name: Build the mod and run tests
+        run: gradle :DonationAlerts:test :DaUi:test :fabric_1.20:build
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: "[FABRIC] ${{ github.ref_name }} - DA Integration"
+          body_path: .github/release-notes/${{ github.ref_name }}.md
+          files: |
+            Modifications/fabric_1.20/build/libs/daintegrate-*[0-9].jar
+          fail_on_unmatched_files: true
