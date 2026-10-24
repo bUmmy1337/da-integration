@@ -74,8 +74,8 @@ public class MenuPreview {
         GLFW.glfwSwapInterval(1);
         GL.createCapabilities();
 
-        var context = new PreviewContext(token, state, () -> GLFW.glfwSetWindowShouldClose(window, true));
         I18n.setLanguage(lang);
+        var context = new PreviewContext(token, state, () -> GLFW.glfwSetWindowShouldClose(window, true));
 
         var host = new ImGuiHost(new ImGuiHost.FontTextureUploader() {
             @Override
@@ -176,8 +176,8 @@ public class MenuPreview {
     private static void pushSampleToasts() {
         boolean ru = net.bummy1337.daintegrate.ui.I18n.isRussian();
         Toasts.push(Toasts.Kind.Connected, "Donation Alerts", I18n.t("toast.connected"), null);
-        Toasts.push(Toasts.Kind.Subscription, "Мария", ru ? "Подписка на YouTube" : "YouTube subscription", null);
-        Toasts.push(Toasts.Kind.Donation, "nightowl", ru ? "Включай ночь!" : "Make it night!", "500 RUB");
+        Toasts.push(Toasts.Kind.Subscription, ru ? "Мария" : "Maria", ru ? "Подписка на YouTube" : "YouTube subscription", null);
+        Toasts.push(Toasts.Kind.Donation, "nightowl", ru ? "Включай ночь!" : "Make it night!", ru ? "500 RUB" : "5 USD");
     }
 
     /** A soft, out-of-focus "world" (sky, sun, hills) standing in for the game's blurred background. */
