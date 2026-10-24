@@ -1,5 +1,5 @@
 # DonationAlerts Integration
-## Minecraft version: 26.1.2
+## Minecraft version: 26.3
 A modification that allows you to receive events from **DonationAlerts** and interact with your chat and Minecraft server.
 Forked from [Folleach repo](https://github.com/Folleach/DonationAlerts-Minecraft) - thanks!
 
@@ -17,42 +17,39 @@ You can download this from: [Releases](https://github.com/bummy1337/da-integrati
 
 ## Setup
 
-### Setup your token
+Press **`=`** in game to open the menu (the key can be changed in *Controls*), or type `/da`.
 
-There are several ways to set your token here.
+1. Go to **Connection** and click **Open token page**. Donation Alerts opens in your browser.
+2. Copy the secret token (or the link of the alert widget for OBS: the mod finds the token in it)
+   and click **Paste from clipboard**.
+3. That's it: the mod connects right away and reconnects by itself if the connection drops.
+   Send a test alert from Donation Alerts and it shows up on the **Overview** page.
 
-#### With minecraft command
+With *Connect automatically* on (the default) the mod connects every time the game starts.
+The token is stored only on your computer, in `~/.donation-alerts-token`.
 
-1. Copy the token to the clipboard from DonationAlerts service
-2. Execute command in your minecraft chat
-   ```
-   /da set
-   ```
-   **NO NEED** to insert a token into the chat! The token will be taken from your clipboard.
+Triggers are created in the **Triggers** page: pick the event (donation, subscription, Bits, points),
+the amount range and the currency, then add chat messages or commands. **Test** runs the trigger
+without a real donation. Changes are saved with **Save** or `Ctrl+S`.
 
-#### With file
+### Chat commands
 
-1. Open the file  
-   Windows: `C:\Users\<your user>\.donation-alerts-token`  
-   Linux: `~/.donation-alerts-token`
-2. Paste your token to the file
-3. Save
+| Command | What it does |
+|---|---|
+| `/da` | open the menu |
+| `/da set` | save the token or widget link from the clipboard and connect |
+| `/da connect` | connect with the saved token |
+| `/da disconnect` | disconnect |
+| `/da status` | show the connection status |
 
-### Connect to the Donation Alerts
+### Working on the menu
 
-To connect to Donation Alerts, use the command in Minecraft
+The menu is an ImGui interface in the `DaUi` module, shared by the mod. To see it without
+starting Minecraft, run a preview window with sample data:
+
 ```
-/da connect
-```
-
-To check connection status you can use command
-```
-/da status
-```
-
-And there is the command to disconnect
-```
-/da disconnect
+cd Modifications
+./gradlew :DaUi:preview --args="--lang ru --page Triggers"
 ```
 
 ## Configuration
