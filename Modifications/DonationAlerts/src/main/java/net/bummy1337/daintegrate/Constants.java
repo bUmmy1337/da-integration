@@ -6,8 +6,10 @@ public class Constants {
     public static final String DonationAlertsEventServer = "https://socket.donationalerts.ru:443";
     public static final String TokenFileName = ".donation-alerts-token";
 
-    public static final String GuideToSetToken = "https://github.com/bummy1337/da-integration/how-to-set-token";
-    public static final String GuideToConfiguration = "https://github.com/bummy1337/da-integration/configuration";
+    public static final String GuideToSetToken = "https://github.com/bummy1337/da-integration#setup";
+    public static final String GuideToConfiguration = "https://github.com/bummy1337/da-integration#configuration";
+    public static final String DonationAlertsTokenPage = "https://www.donationalerts.com/dashboard/general-settings/account";
+    public static final String DonationAlertsWidgetPage = "https://www.donationalerts.com/dashboard/alert-widget";
 
     public static final String ModDefaultCommand = "da";
     public static final String EditDefaultSubCommand = "edit";

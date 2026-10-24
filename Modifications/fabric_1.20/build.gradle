@@ -7,7 +7,10 @@ version = project.mod_version
 group = project.maven_group
 
 configurations {
-    addtojar
+    addtojar {
+        // Minecraft already ships Gson
+        exclude group: 'com.google.code.gson'
+    }
 }
 
 dependencies {
@@ -17,6 +20,13 @@ dependencies {
 
     implementation project(path: ':DonationAlerts', configuration: 'default')
     addtojar project(path: ':DonationAlerts', configuration: 'default')
+
+    // The ImGui menu and its native libraries for every desktop platform
+    implementation project(path: ':DaUi', configuration: 'default')
+    addtojar project(path: ':DaUi', configuration: 'default')
+    ['windows', 'linux', 'macos'].each { os ->
+        addtojar "io.github.spair:imgui-java-natives-${os}:${project.imgui_version}"
+    }
 
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 }
@@ -41,6 +51,8 @@ java {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'module-info.class'
     from {
         configurations.addtojar.findAll { it.name.endsWith('jar') }.collect { zipTree(it) }
     }

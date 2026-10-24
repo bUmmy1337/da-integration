@@ -9,7 +9,13 @@ public class DonateSensitive implements ISensitive<DonateSensitiveProperties> {
         return event.getType() == AlertType.Donate
                 && event.getAmount() >= properties.from
                 && event.getAmount() <= properties.to
-                && event.getCurrency().trim().equalsIgnoreCase(properties.currency.trim());
+                && currencyMatches(event.getCurrency(), properties.currency);
+    }
+
+    private static boolean currencyMatches(String actual, String expected) {
+        if (expected == null || expected.isBlank())
+            return true;
+        return actual != null && actual.trim().equalsIgnoreCase(expected.trim());
     }
 
     @Override

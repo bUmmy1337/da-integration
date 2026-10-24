@@ -3,55 +3,58 @@ package net.bummy1337.daintegrate.fabric;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.bummy1337.daintegrate.Constants;
 import net.bummy1337.daintegrate.DonationAlertsIntegrate;
 import net.bummy1337.daintegrate.DonationAlertsIntegrateFactory;
 import net.bummy1337.daintegrate.EventProcessor;
+import net.bummy1337.daintegrate.TokenStore;
 import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
-import net.bummy1337.daintegrate.fabric.gui.clickgui.ClickGui;
-import net.bummy1337.daintegrate.fabric.screen.MainScreen;
+import net.bummy1337.daintegrate.fabric.imgui.ImGuiScreen;
 import net.bummy1337.daintegrate.listeners.DonationAlertsEventListener;
+import net.bummy1337.daintegrate.ui.DaMenu;
+import net.bummy1337.daintegrate.ui.I18n;
+import net.bummy1337.dontaionalerts.ConnectionState;
 import net.bummy1337.dontaionalerts.DonationAlertsClient;
 import net.bummy1337.dontaionalerts.ReadOnlyDonationAlertsEvent;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.Identifier;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ClientEntryPoint implements ClientModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Constants.ModId);
-    private static FileConfigurationSource configurationSource = null;
+    private static final int MaxEvents = 100;
+    private static final int Orange = 0xFFAA00;
+    private static final int Link = 0x55FFFF;
+    private static final int Red = 0xFF5555;
+    private static final int Green = 0x55FF55;
+
+    private FileConfigurationSource configurationSource;
     private DonationAlertsClient client;
-    private KeyMapping openWindowKey;
-    private KeyMapping openClickGuiKey;
-    private List<ReadOnlyDonationAlertsEvent> donations = new ArrayList<>();
+    private final TokenStore tokens = new TokenStore();
+    private final List<ReadOnlyDonationAlertsEvent> events = new CopyOnWriteArrayList<>();
+    private KeyMapping openKey;
+    private MinecraftUiContext uiContext;
+    private ConnectionState lastAnnounced = ConnectionState.Disconnected;
 
     @Override
     public void onInitializeClient() {
-        configurationSource = null;
-
         DonationAlertsIntegrate.configure(Constants.ModId, Constants.ModUrl)
                 .registerHandler(new MessageHandler())
                 .registerHandler(new CommandHandler());
@@ -61,191 +64,191 @@ public class ClientEntryPoint implements ClientModInitializer {
                     "donation-alerts-integrate",
                     "settings.yaml",
                     LOGGER::info);
+            // Watch the file from the start, so the menu and the triggers always see the latest settings
+            configurationSource.startListening();
         } catch (IOException e) {
             LOGGER.error("failed to initialize donation-alerts-integrate", e);
         }
 
         var eventProcessor = new EventProcessor();
-        var listener = new DonationAlertsEventListener(eventProcessor);
         try {
-            client = new DonationAlertsClient(Constants.DonationAlertsEventServer, listener);
+            client = new DonationAlertsClient(Constants.DonationAlertsEventServer, new DonationAlertsEventListener(eventProcessor));
         } catch (java.net.URISyntaxException e) {
             throw new RuntimeException(e);
         }
+        client.addStateListener(state -> Minecraft.getInstance().execute(() -> announce(state)));
 
-        DonationAlertsIntegrate.registerEventListener(readOnly -> {
-            if (readOnly.isTest() && DonationAlertsIntegrate.isSkipTestDonation())
+        DonationAlertsIntegrate.registerEventListener(event -> {
+            if (event.isTest() && DonationAlertsIntegrate.isSkipTestDonation())
                 return;
-            donations.add(readOnly);
-            if (donations.size() > 100) {
-                donations.remove(0);
-            }
-        });
-
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> registerCommands(dispatcher));
-
-        ClientTickEvents.END_CLIENT_TICK.register(t -> {
-            eventProcessor.evalute();
+            events.add(event);
+            while (events.size() > MaxEvents)
+                events.remove(0);
         });
 
         var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Constants.ModId, "keys"));
-        openWindowKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        "key.daintegrate.open",
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_EQUAL,
-                        category
-                )
-        );
-        openClickGuiKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        "key.daintegrate.clickgui",
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_GRAVE_ACCENT,
-                        category
-                )
-        );
+        openKey = KeyMappingHelper.registerKeyMapping(
+                new KeyMapping("key.daintegrate.open", InputConstants.Type.KEYBOARD, InputConstants.KEY_EQUALS, category));
 
-        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
-            while (openWindowKey.consumeClick()) {
-                if (configurationSource != null) {
-                    Minecraft.getInstance().setScreen(new MainScreen(configurationSource, this.client, donations));
-                }
-            }
-            while (openClickGuiKey.consumeClick()) {
-                if (configurationSource != null) {
-                    ClickGui.getInstance().setContext(configurationSource, this.client, donations);
-                    ClickGui.getInstance().openGui();
-                }
-            }
+        if (configurationSource != null)
+            uiContext = new MinecraftUiContext(configurationSource, client, tokens, events, eventProcessor, openKey);
+
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> registerCommands(dispatcher));
+
+        ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
+            eventProcessor.evalute();
+            while (openKey.consumeClick())
+                openMenu(null);
         });
 
-        ClientPlayConnectionEvents.JOIN.register(new ClientPlayConnectionEvents.Join() {
-            @Override
-            public void onPlayReady(ClientPacketListener handler, PacketSender sender, Minecraft client) {
-                if (configurationSource != null) {
-                    configurationSource.startListening();
-                    var player = Minecraft.getInstance().player;
-                    if (player == null)
-                        return;
-                    var current = configurationSource.getCurrent();
-                    if (current == null || current.disableWelcomeMessage)
-                        return;
-                    sendWelcomeMessage(player);
-                }
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, minecraft) -> onJoin());
+
+        autoConnect();
+    }
+
+    private void autoConnect() {
+        var settings = configurationSource == null ? null : configurationSource.getCurrent();
+        if (settings != null && settings.disableAutoConnect)
+            return;
+        var token = tokens.load();
+        if (token != null)
+            client.connect(token);
+    }
+
+    private void openMenu(DaMenu.Page page) {
+        if (uiContext == null)
+            return;
+        var screen = new ImGuiScreen(uiContext);
+        if (page != null)
+            ImGuiScreen.menu().open(page);
+        Minecraft.getInstance().setScreenAndShow(screen);
+    }
+
+    private void onJoin() {
+        var settings = configurationSource == null ? null : configurationSource.getCurrent();
+        if (settings != null && settings.disableWelcomeMessage)
+            return;
+        syncLanguage();
+        if (!tokens.exists()) {
+            send(prefix().append(I18n.t("chat.noToken")).append(openMenuLink()));
+            return;
+        }
+        send(prefix().append(I18n.t("chat.welcome", keyName())).append(statusText(client.getState())));
+    }
+
+    /** Tells the player about connection changes, without repeating every reconnect attempt. */
+    private void announce(ConnectionState state) {
+        var previous = lastAnnounced;
+        if (state == ConnectionState.Connecting || state == ConnectionState.Reconnecting)
+            return;
+        if (state == previous)
+            return;
+        lastAnnounced = state;
+        syncLanguage();
+        switch (state) {
+            case Connected -> send(prefix().append(colored(I18n.t("chat.connected"), Green)));
+            case Disconnected -> {
+                if (previous == ConnectionState.Connected)
+                    send(prefix().append(I18n.t("chat.disconnected")));
             }
-        });
+            case Error -> send(prefix().append(colored(I18n.t("chat.error", String.valueOf(client.getLastError())), Red)));
+            default -> {
+            }
+        }
     }
 
     private void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(ClientCommands.literal("da")
-                .then(ClientCommands.literal("set")
-                        .executes(this::setCommand)
-                )
-                .then(ClientCommands.literal("connect")
-                        .executes(this::connectCommand)
-                )
-                .then(ClientCommands.literal("disconnect")
-                        .executes(this::disconnectCommand)
-                )
-                .then(ClientCommands.literal("status")
-                        .executes(this::statusCommand)
-                )
+                .executes(context -> {
+                    // Commands run before the chat screen closes; open the menu on the next tick
+                    Minecraft.getInstance().execute(() -> openMenu(null));
+                    return 1;
+                })
+                .then(ClientCommands.literal("set").executes(this::setCommand))
+                .then(ClientCommands.literal("connect").executes(this::connectCommand))
+                .then(ClientCommands.literal("disconnect").executes(this::disconnectCommand))
+                .then(ClientCommands.literal("status").executes(this::statusCommand))
         );
     }
 
-    private int statusCommand(CommandContext<FabricClientCommandSource> context) {
-        context.getSource().getPlayer().sendSystemMessage(getPrefix().append(client.getConnected() ? "Connected" : "Not connected"));
-        return 0;
+    private int setCommand(CommandContext<FabricClientCommandSource> context) {
+        syncLanguage();
+        var token = TokenStore.parse(Minecraft.getInstance().keyboardHandler.getClipboard());
+        if (token == null) {
+            send(prefix().append(colored(I18n.t("chat.tokenInvalid"), Red)));
+            return 0;
+        }
+        try {
+            tokens.save(token);
+        } catch (IOException e) {
+            LOGGER.error("failed to save the token", e);
+            send(prefix().append(colored(e.getMessage(), Red)));
+            return 0;
+        }
+        send(prefix().append(I18n.t("chat.tokenSaved")));
+        client.connect(token);
+        return 1;
+    }
+
+    private int connectCommand(CommandContext<FabricClientCommandSource> context) {
+        syncLanguage();
+        var token = tokens.load();
+        if (token == null) {
+            send(prefix().append(I18n.t("chat.noToken")).append(openMenuLink()));
+            return 0;
+        }
+        client.connect(token);
+        return 1;
     }
 
     private int disconnectCommand(CommandContext<FabricClientCommandSource> context) {
         client.disconnect();
-        return 0;
+        return 1;
     }
 
-    private int connectCommand(CommandContext<FabricClientCommandSource> context) {
-        var home = System.getProperty("user.home");
-        var token = "";
-        try (BufferedReader br = new BufferedReader(new FileReader(new File(home, Constants.TokenFileName)))) {
-            String line;
-            while ((line = br.readLine()) != null && line.length() > 3) {
-                token = line.trim();
-            }
-        } catch (FileNotFoundException e) {
-            sendTokenNotFoundMessage(context.getSource().getPlayer());
-            return 1;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        if (token.isEmpty()) {
-            sendTokenNotFoundMessage(context.getSource().getPlayer());
-            return 1;
-        }
-        var connected = client.connect(token);
-        if (connected)
-            context.getSource().getPlayer().sendSystemMessage(getPrefix().append("Successfully connected"));
-        else
-            context.getSource().getPlayer().sendSystemMessage(getPrefix().append("Failed to connect :(").withStyle(style -> style.withColor(TextColor.fromRgb(0xAA0000))));
-        return 0;
+    private int statusCommand(CommandContext<FabricClientCommandSource> context) {
+        syncLanguage();
+        send(prefix().append(I18n.t("chat.status", "")).append(statusText(client.getState())));
+        return 1;
     }
 
-    private int setCommand(CommandContext<FabricClientCommandSource> context) {
-        try {
-            var clipboard = Minecraft.getInstance().keyboardHandler.getClipboard();
-            if (clipboard == null || clipboard.trim().length() < 3) {
-                context.getSource().getPlayer().sendSystemMessage(getPrefix().append("The copied text does not look like a token"));
-                return 1;
-            }
-            clipboard = clipboard.trim();
-            var home = System.getProperty("user.home");
-            PrintWriter writer = new PrintWriter(new File(home, Constants.TokenFileName), StandardCharsets.UTF_8);
-            writer.println(clipboard);
-            writer.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        context.getSource().getPlayer().sendSystemMessage(getPrefix().append("The token is set"));
-        return 0;
+    private MutableComponent statusText(ConnectionState state) {
+        int color = switch (state) {
+            case Connected -> Green;
+            case Error -> Red;
+            case Connecting, Reconnecting -> Orange;
+            default -> 0xAAAAAA;
+        };
+        return colored(I18n.t("state." + state.name()), color);
     }
 
-    private static void sendTokenNotFoundMessage(LocalPlayer player) {
-        player.sendSystemMessage(getPrefix()
-                .append("Token not found. ")
-                .append(Component.literal("Learn more")
-                        .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(Constants.GuideToSetToken))))
-                        .withStyle(style -> style.withColor(TextColor.fromRgb(0x55FFFF)))
-                )
-        );
+    private MutableComponent openMenuLink() {
+        return Component.literal(I18n.t("chat.openMenu", keyName()))
+                .withStyle(style -> style.withColor(TextColor.fromRgb(Link)).withUnderlined(true)
+                        .withClickEvent(new ClickEvent.RunCommand("/da")));
     }
 
-    private static void sendWelcomeMessage(LocalPlayer player) {
-        player.sendSystemMessage(getPrefix()
-                .append("Settings stored in ")
-                .append(Component.literal("donation-alerts-integrate/settings.yaml")
-                        .withStyle(style -> style.withColor(TextColor.fromRgb(0xAAAAAA)))
-                )
-                .append(Component.literal(". "))
-                .append(Component.literal("Click to open")
-                        .withStyle(style -> style.withClickEvent(new ClickEvent.OpenFile("donation-alerts-integrate/settings.yaml")))
-                        .withStyle(style -> style.withColor(TextColor.fromRgb(0x55FFFF)))
-                )
-        );
-        player.sendSystemMessage(getPrefix()
-                .append("Click ")
-                .append(Component.literal("here")
-                        .withStyle(style -> style.withClickEvent(new ClickEvent.OpenUrl(URI.create(Constants.GuideToConfiguration))))
-                        .withStyle(style -> style.withColor(TextColor.fromRgb(0x55FFFF)))
-                )
-                .append(" to open manual")
-        );
+    private String keyName() {
+        return openKey.getTranslatedKeyMessage().getString();
     }
 
-    private static MutableComponent getPrefix() {
+    private static void syncLanguage() {
+        I18n.setLanguage(Minecraft.getInstance().getLanguageManager().getSelected());
+    }
+
+    private static void send(Component message) {
+        var player = Minecraft.getInstance().player;
+        if (player != null)
+            player.sendSystemMessage(message);
+    }
+
+    private static MutableComponent colored(String text, int rgb) {
+        return Component.literal(text).withStyle(style -> style.withColor(TextColor.fromRgb(rgb)));
+    }
+
+    private static MutableComponent prefix() {
         return Component.literal("[")
-                .append(Component.literal("DA Integrate")
-                        .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFAA00)))
-                )
+                .append(colored("DA Integrate", Orange))
                 .append("] ");
     }
 }
