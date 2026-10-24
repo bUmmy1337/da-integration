@@ -40,5 +40,5 @@ jobs:
           name: "[FABRIC] ${{ env.TAG }} - DA Integration"
           body_path: .github/release-notes/${{ env.TAG }}.md
           files: |
-            Modifications/fabric_1.20/build/libs/daintegrate-*[0-9].jar
+            Modifications/fabric_1.20/build/libs/*[0-9].jar
           fail_on_unmatched_files: true
