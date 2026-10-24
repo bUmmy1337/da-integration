@@ -155,7 +155,7 @@ public class ImGuiScreen extends Screen {
 
     @Override
     public void onClose() {
-        Minecraft.getInstance().setScreen(null);
+        Minecraft.getInstance().setScreenAndShow(null);
     }
 
     @Override

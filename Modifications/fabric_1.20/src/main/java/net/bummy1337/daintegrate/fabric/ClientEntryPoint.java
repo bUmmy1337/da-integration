@@ -88,7 +88,7 @@ public class ClientEntryPoint implements ClientModInitializer {
 
         var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Constants.ModId, "keys"));
         openKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping("key.daintegrate.open", InputConstants.Type.KEYSYM, InputConstants.KEY_EQUALS, category));
+                new KeyMapping("key.daintegrate.open", InputConstants.Type.KEYBOARD, InputConstants.KEY_EQUALS, category));
 
         if (configurationSource != null)
             uiContext = new MinecraftUiContext(configurationSource, client, tokens, events, eventProcessor, openKey);
@@ -121,7 +121,7 @@ public class ClientEntryPoint implements ClientModInitializer {
         var screen = new ImGuiScreen(uiContext);
         if (page != null)
             ImGuiScreen.menu().open(page);
-        Minecraft.getInstance().setScreen(screen);
+        Minecraft.getInstance().setScreenAndShow(screen);
     }
 
     private void onJoin() {

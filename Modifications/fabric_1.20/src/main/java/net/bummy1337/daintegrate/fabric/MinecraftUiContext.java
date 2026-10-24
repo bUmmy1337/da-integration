@@ -8,7 +8,7 @@ import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
 import net.bummy1337.daintegrate.ui.UiContext;
 import net.bummy1337.dontaionalerts.DonationAlertsClient;
 import net.bummy1337.dontaionalerts.ReadOnlyDonationAlertsEvent;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 
@@ -104,6 +104,6 @@ class MinecraftUiContext implements UiContext {
 
     @Override
     public void close() {
-        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(null));
+        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreenAndShow(null));
     }
 }

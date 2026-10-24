@@ -35,12 +35,11 @@ jobs:
 
       # Temporary: list the Minecraft API the mod uses, to fix the port against the real 26.3 names
       - name: Inspect Minecraft API
-        if: failure()
+        if: always()
         run: |
           JAR=$(find ~/.gradle/caches -name "minecraft-*merged*named*.jar" -o -name "minecraft-client*named*.jar" | grep -v sources | head -1)
           [ -z "$JAR" ] && JAR=$(find ~/.gradle/caches/fabric-loom -name "*.jar" | grep -i minecraft | grep -v sources | head -1)
           echo "jar: $JAR"
-          unzip -Z1 "$JAR" | grep -E "(RenderPipeline|GuiRenderState|GuiElementRenderState|/Util\.class|Util\.class$|render/state/)" | grep -v '\$' | head -40
-          for c in net.minecraft.client.Minecraft 'com.mojang.blaze3d.platform.InputConstants$Type' net.minecraft.client.gui.GuiGraphicsExtractor; do
-            echo "=== $c"; javap -cp "$JAR" "$c" | grep -iE "screen|enum|KEYSYM|static final|GuiRenderState|Type " | head -40
+          for c in net.minecraft.client.gui.GuiGraphicsExtractor net.minecraft.client.renderer.state.gui.GuiElementRenderState net.minecraft.client.renderer.state.gui.GuiRenderState net.minecraft.client.gui.render.TextureSetup net.minecraft.client.renderer.texture.DynamicTexture net.minecraft.client.gui.screens.Screen; do
+            echo "=== $c"; javap -p -cp "$JAR" "$c" | grep -vE "lambda\$" | head -60
           done
