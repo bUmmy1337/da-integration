@@ -84,6 +84,18 @@ public class DaMenu {
 
         if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.S, false))
             triggers.save();
+
+        renderToasts(context.getSettings(), displayWidth, displayHeight, host, s);
+    }
+
+    /** Draws the pop-up notifications; the game calls it on its own when the menu is closed. */
+    public static void renderToasts(net.bummy1337.daintegrate.configurations.SettingsDto settings, float displayWidth, float displayHeight,
+                                    ImGuiHost host, float scale) {
+        if (settings != null && settings.disableToasts) {
+            Toasts.clear();
+            return;
+        }
+        Toasts.render(host, displayWidth, displayHeight, scale, Toasts.Corner.parse(settings == null ? null : settings.toastCorner));
     }
 
     private void renderSidebar(float width, float height) {
