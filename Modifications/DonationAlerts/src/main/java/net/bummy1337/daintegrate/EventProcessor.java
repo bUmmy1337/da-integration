@@ -54,19 +54,41 @@ public class EventProcessor implements IListener<ReadOnlyDonationAlertsEvent> {
         return DonationAlertsIntegrate.getTriggers().filter(trigger -> {
             if (!trigger.isActive)
                 return false;
+            if (trigger.sensitives == null)
+                return false;
             for (var sensitive : trigger.sensitives) {
+                if (sensitive == null || sensitive.properties == null)
+                    continue;
                 var sensitiveDescriptor = DonationAlertsIntegrate.getSensitive(sensitive.properties.type);
-                var isSense = sensitiveDescriptor.getSensitive().isActive(event, sensitive.properties.value);
-                if (isSense)
-                    return true;
+                if (sensitiveDescriptor == null)
+                    continue;
+                try {
+                    if (sensitiveDescriptor.getSensitive().isActive(event, sensitive.properties.value))
+                        return true;
+                } catch (RuntimeException e) {
+                    System.out.println("Condition '" + sensitive.properties.type + "' of trigger '" + trigger.name + "' failed: " + e);
+                }
             }
             return false;
         });
     }
 
+    @SuppressWarnings("unchecked")
     private void execute(ReadOnlyDonationAlertsEvent value, HandlerPropertiesDto handler) {
+        if (handler == null || handler.properties == null)
+            return;
         var handlerDescriptor = DonationAlertsIntegrate.getHandler(handler.properties.type);
-        handlerDescriptor.getHandler().handle(value, handler.properties.value);
+        if (handlerDescriptor == null) {
+            // The mod that added this action is not installed; keep the rest of the trigger working
+            System.out.println("Skip unknown action '" + handler.properties.type + "'");
+            return;
+        }
+        try {
+            handlerDescriptor.getHandler().handle(value, handler.properties.value);
+        } catch (RuntimeException e) {
+            System.out.println("Action '" + handler.properties.type + "' failed: " + e);
+            e.printStackTrace();
+        }
     }
 
     public void evalute() {

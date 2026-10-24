@@ -20,6 +20,12 @@ public class ModuleConfiguration implements IModuleConfiguration {
     }
 
     @Override
+    public <T> IModuleConfiguration registerAction(String id, String title, Class<T> propertiesType, IAction<T> action) {
+        DonationAlertsIntegrate.registerAction(id, title, propertiesType, action, modId, modUrl);
+        return this;
+    }
+
+    @Override
     public <T> IModuleConfiguration registerSensitive(ISensitive<T> sensitive) {
         DonationAlertsIntegrate.registerSensitive(sensitive, modId, modUrl);
         return this;

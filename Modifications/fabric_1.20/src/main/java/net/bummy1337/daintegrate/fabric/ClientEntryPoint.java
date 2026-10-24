@@ -8,6 +8,7 @@ import net.bummy1337.daintegrate.DonationAlertsIntegrate;
 import net.bummy1337.daintegrate.DonationAlertsIntegrateFactory;
 import net.bummy1337.daintegrate.EventProcessor;
 import net.bummy1337.daintegrate.TokenStore;
+import net.bummy1337.daintegrate.api.DaIntegratePlugin;
 import net.bummy1337.daintegrate.configurations.sources.FileConfigurationSource;
 import net.bummy1337.daintegrate.configurations.SettingsDto;
 import net.bummy1337.daintegrate.fabric.imgui.ImGuiRuntime;
@@ -20,6 +21,7 @@ import net.bummy1337.dontaionalerts.ConnectionState;
 import net.bummy1337.dontaionalerts.DonationAlertsClient;
 import net.bummy1337.dontaionalerts.ReadOnlyDonationAlertsEvent;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -59,9 +61,12 @@ public class ClientEntryPoint implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        DonationAlertsIntegrate.configure(Constants.ModId, Constants.ModUrl)
+        var configuration = DonationAlertsIntegrate.configure(Constants.ModId, Constants.ModUrl)
                 .registerHandler(new MessageHandler())
                 .registerHandler(new CommandHandler());
+        GameActions.register(configuration);
+        // Actions of other mods must be known before the settings load, or their triggers would not
+        registerPlugins();
 
         try {
             configurationSource = DonationAlertsIntegrateFactory.create(
@@ -76,7 +81,9 @@ public class ClientEntryPoint implements ClientModInitializer {
 
         var eventProcessor = new EventProcessor();
         try {
-            client = new DonationAlertsClient(Constants.DonationAlertsEventServer, new DonationAlertsEventListener(eventProcessor));
+            // Donations arrive on the socket thread; run triggers on the game thread, like delayed actions
+            client = new DonationAlertsClient(Constants.DonationAlertsEventServer, new DonationAlertsEventListener(
+                    event -> Minecraft.getInstance().execute(() -> eventProcessor.onValue(event))));
         } catch (java.net.URISyntaxException e) {
             throw new RuntimeException(e);
         }
@@ -116,6 +123,19 @@ public class ClientEntryPoint implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, minecraft) -> onJoin());
 
         autoConnect();
+    }
+
+    private void registerPlugins() {
+        for (var container : FabricLoader.getInstance().getEntrypointContainers(Constants.ModId, DaIntegratePlugin.class)) {
+            var metadata = container.getProvider().getMetadata();
+            try {
+                var url = metadata.getContact().get("homepage").orElse("");
+                container.getEntrypoint().register(DonationAlertsIntegrate.configure(metadata.getId(), url));
+                LOGGER.info("actions of {} registered", metadata.getId());
+            } catch (Throwable e) {
+                LOGGER.error("failed to register actions of {}", metadata.getId(), e);
+            }
+        }
     }
 
     private SettingsDto currentSettings() {

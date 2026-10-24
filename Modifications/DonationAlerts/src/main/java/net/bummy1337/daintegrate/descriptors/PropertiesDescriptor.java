@@ -5,7 +5,9 @@ import net.bummy1337.daintegrate.IHandler;
 import net.bummy1337.daintegrate.Property;
 import net.bummy1337.daintegrate.sensitives.ISensitive;
 
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
+import java.util.ArrayList;
 
 public class PropertiesDescriptor<T> {
     private final Class<T> type;
@@ -13,28 +15,31 @@ public class PropertiesDescriptor<T> {
     private final Property[] properties;
 
     public PropertiesDescriptor(IHandler<T> handler, EntityId id) {
-        this((Object)handler, id);
+        this(getType(handler), id);
     }
 
     public PropertiesDescriptor(ISensitive<T> sensitive, EntityId id) {
-        this((Object)sensitive, id);
+        this(getType(sensitive), id);
     }
 
-    private PropertiesDescriptor(Object object, EntityId id) {
-        this.type = getType(object);
+    public PropertiesDescriptor(Class<T> type, EntityId id) {
+        this.type = type;
         this.id = id;
-        var fields = type.getDeclaredFields();
-        properties = new Property[fields.length];
-        for (var i = 0; i < fields.length; i++) {
-            var field = fields[i];
+        var list = new ArrayList<Property>();
+        for (var field : type.getDeclaredFields()) {
+            // Constants such as ImplementationId are not settings
+            if (Modifier.isStatic(field.getModifiers()) || !Modifier.isPublic(field.getModifiers()))
+                continue;
             var property = new Property();
             property.name = field.getName();
-            properties[i] = property;
+            property.type = field.getType();
+            list.add(property);
         }
+        properties = list.toArray(new Property[0]);
     }
 
     @SuppressWarnings("unchecked")
-    private Class<T> getType(Object object) {
+    private static <T> Class<T> getType(Object object) {
         return (Class<T>)((ParameterizedType)object
                 .getClass()
                 .getGenericInterfaces()[0])
@@ -45,7 +50,16 @@ public class PropertiesDescriptor<T> {
         return id.getUniqueId();
     }
 
+    public EntityId getId() {
+        return id;
+    }
+
     public Class<T> getType() {
         return type;
+    }
+
+    /** The public instance fields of the settings class, in declaration order. */
+    public Property[] getProperties() {
+        return properties;
     }
 }

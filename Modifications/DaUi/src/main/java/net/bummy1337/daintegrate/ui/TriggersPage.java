@@ -35,6 +35,8 @@ class TriggersPage {
     private int selected = -1;
     private String search = "";
     private int focusedAction = -1;
+    /** Setting of the focused action that placeholders go into. */
+    private String focusedField;
     private int pendingDelete = -1;
     private String toast;
     private boolean toastIsError;
@@ -353,13 +355,17 @@ class TriggersPage {
                 float controls = delayWidth + spacing + ImGui.calcTextSizeX(seconds) + 3 * (frame + spacing) + 10 * s;
 
                 var typeLine = ImGui.getCursorPosY();
-                var types = new String[]{I18n.t("seg.message"), I18n.t("seg.command")};
-                int type = Widgets.segmented("##type", types, action.type.ordinal(), Math.min(230 * s, blockWidth - controls - 30 * s));
-                action.type = TriggerModel.ActionType.values()[type];
+                ImGui.setNextItemWidth(Math.min(230 * s, blockWidth - controls - 30 * s));
+                if (ImGui.beginCombo("##type", TriggerModel.titleOf(action.type))) {
+                    for (var type : TriggerModel.availableTypes()) {
+                        if (ImGui.selectable(TriggerModel.titleOf(type), type.equals(action.type)))
+                            action.changeType(type);
+                    }
+                    ImGui.endCombo();
+                }
 
-                // The segmented control is a little taller than a frame; centre the controls on it
                 ImGui.sameLine(blockWidth - controls);
-                ImGui.setCursorPosY(typeLine + 3 * s);
+                ImGui.setCursorPosY(typeLine);
                 action.delayTicks = Math.round(number("##delay", action.delayTicks / 20f, false, delayWidth) * 20);
                 Widgets.tooltip(I18n.t("trg.action.delay"));
                 ImGui.sameLine(0, 4 * s);
@@ -379,12 +385,7 @@ class TriggersPage {
                 if (iconButton("##remove", Icons.Kind.Trash, true))
                     remove = i;
 
-                var hint = action.type == TriggerModel.ActionType.Command
-                        ? "give {playername} diamond 1"
-                        : I18n.t("trg.action.hint");
-                action.text = Widgets.input("##text", hint, action.text, blockWidth - 20 * s, 1024);
-                if (ImGui.isItemActive())
-                    focusedAction = i;
+                renderActionFields(action, i, blockWidth - 20 * s);
                 ImGui.dummy(0, 2 * s);
                 ImGui.unindent(10 * s);
 
@@ -412,13 +413,27 @@ class TriggersPage {
             }
 
             if (Widgets.button(I18n.t("trg.action.add.message"), 0)) {
-                model.actions.add(new TriggerModel.Action(TriggerModel.ActionType.Message, "", 0));
-                focusedAction = model.actions.size() - 1;
+                model.actions.add(TriggerModel.Action.message("", 0));
+                focusAction(model.actions.size() - 1, null);
             }
             ImGui.sameLine();
             if (Widgets.button(I18n.t("trg.action.add.command"), 0)) {
-                model.actions.add(new TriggerModel.Action(TriggerModel.ActionType.Command, "", 0));
-                focusedAction = model.actions.size() - 1;
+                model.actions.add(TriggerModel.Action.command("", 0));
+                focusAction(model.actions.size() - 1, null);
+            }
+            ImGui.sameLine();
+            if (Widgets.button(I18n.t("trg.action.add.more"), 0))
+                ImGui.openPopup("##addAction");
+            if (ImGui.beginPopup("##addAction")) {
+                for (var type : TriggerModel.availableTypes()) {
+                    if (type.equals(TriggerModel.MessageType) || type.equals(TriggerModel.CommandType))
+                        continue;
+                    if (ImGui.selectable(TriggerModel.titleOf(type))) {
+                        model.actions.add(new TriggerModel.Action(type, 0));
+                        focusAction(model.actions.size() - 1, null);
+                    }
+                }
+                ImGui.endPopup();
             }
 
             Widgets.gap(2);
@@ -435,12 +450,65 @@ class TriggersPage {
                     int target = focusedAction >= 0 && focusedAction < model.actions.size() ? focusedAction : model.actions.size() - 1;
                     if (target >= 0) {
                         var action = model.actions.get(target);
-                        action.text = (action.text == null ? "" : action.text) + placeholder;
+                        var field = target == focusedAction && focusedField != null && action.fields.containsKey(focusedField)
+                                ? focusedField : action.mainField();
+                        if (field != null && action.isEditable())
+                            action.fields.put(field, action.fields.getOrDefault(field, "") + placeholder);
                     }
                 }
             }
         }
         Widgets.endCard();
+    }
+
+    /** The settings of one action: a single line for a message or command, a small form for the rest. */
+    private void renderActionFields(TriggerModel.Action action, int index, float width) {
+        float s = DaMenu.scale();
+        if (!action.isEditable()) {
+            Widgets.muted(I18n.t("trg.action.unknown", action.type));
+            return;
+        }
+        var fields = TriggerModel.fieldsOf(action.type);
+        boolean single = fields.length == 1 && fields[0].type == String.class;
+        float labelWidth = 0;
+        if (!single)
+            for (var field : fields)
+                labelWidth = Math.max(labelWidth, ImGui.calcTextSizeX(TriggerModel.labelOf(action.type, field.name)));
+        labelWidth += 14 * s;
+
+        for (var field : fields) {
+            var value = action.fields.getOrDefault(field.name, "");
+            var id = "##" + field.name;
+            if (single) {
+                var hint = action.type.equals(TriggerModel.CommandType)
+                        ? "give {playername} diamond 1"
+                        : I18n.t("trg.action.hint");
+                action.fields.put(field.name, Widgets.input(id, hint, value, width, 1024));
+            } else {
+                ImGui.alignTextToFramePadding();
+                ImGui.pushStyleColor(ImGuiCol.Text, col(Theme.TextMuted));
+                ImGui.text(TriggerModel.labelOf(action.type, field.name));
+                ImGui.popStyleColor();
+                ImGui.sameLine(10 * s + labelWidth);
+                float inputWidth = width - labelWidth;
+                if (field.type == boolean.class || field.type == Boolean.class) {
+                    boolean on = Boolean.parseBoolean(value);
+                    if (Widgets.toggle(id, on))
+                        action.fields.put(field.name, String.valueOf(!on));
+                } else if (field.type == String.class) {
+                    action.fields.put(field.name, Widgets.input(id, "", value, inputWidth, 1024));
+                } else {
+                    action.fields.put(field.name, Widgets.input(id, "0", value, Math.min(inputWidth, 120 * s), 32, ImGuiInputTextFlags.CharsDecimal));
+                }
+            }
+            if (ImGui.isItemActive())
+                focusAction(index, field.name);
+        }
+    }
+
+    private void focusAction(int index, String field) {
+        focusedAction = index;
+        focusedField = field;
     }
 
     private void renderFooter(TriggerModel model) {
