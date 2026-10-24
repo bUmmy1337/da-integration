@@ -33,4 +33,3 @@ jobs:
           path: Modifications/fabric_1.20/build/libs/*.jar
           if-no-files-found: error
 
-
