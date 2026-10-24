@@ -1,6 +1,7 @@
 package net.bummy1337.daintegrate.configurations.sources;
 
 import net.bummy1337.daintegrate.Constants;
+import net.bummy1337.daintegrate.DonationAlertsIntegrate;
 import net.bummy1337.daintegrate.IConfigurationSource;
 import net.bummy1337.daintegrate.ITransformer;
 import net.bummy1337.daintegrate.configurations.*;
@@ -219,6 +220,9 @@ public class FileConfigurationSource implements IConfigurationSource {
         representer.addClassTag(SubscribeSensitiveProperties.class, Tag.MAP);
         representer.addClassTag(TwitchPointsSensitiveProperties.class, Tag.MAP);
         representer.addClassTag(TwitchBitsSensitiveProperties.class, Tag.MAP);
+        // Settings of every action, including those other mods add
+        for (var action : DonationAlertsIntegrate.getActions())
+            representer.addClassTag(action.getProperties().getType(), Tag.MAP);
         var yaml = new Yaml(representer, options);
         var fileHandle = new File(path, watchedFileName);
         var output = yaml.dump(settings);

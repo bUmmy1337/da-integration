@@ -30,6 +30,10 @@ public final class I18n {
         return value == null ? key : value;
     }
 
+    public static boolean has(String key) {
+        return current.containsKey(key) || en.containsKey(key);
+    }
+
     public static String t(String key, Object... args) {
         return String.format(t(key), args);
     }
@@ -126,7 +130,23 @@ public final class I18n {
         add("trg.to.hint", "empty = no limit", "пусто = без ограничения");
         add("trg.action.add.message", "+ Message", "+ Сообщение");
         add("trg.action.add.command", "+ Command", "+ Команда");
-        add("trg.action.none", "No actions yet. Add a chat message or a command.", "Действий пока нет. Добавьте сообщение в чат или команду.");
+        add("trg.action.add.more", "+ More…", "+ Ещё…");
+        add("trg.action.unknown", "Action %s comes from a mod that is not installed. It is kept as is.", "Действие %s из мода, который не установлен. Оно сохранится как есть.");
+        add("act.message", "Chat message", "Сообщение в чат");
+        add("act.command", "Command", "Команда");
+        add("act.title", "Title on screen", "Заголовок на экране");
+        add("act.title.title", "Title", "Заголовок");
+        add("act.title.subtitle", "Subtitle", "Подзаголовок");
+        add("act.title.seconds", "Seconds", "Секунд");
+        add("act.actionbar", "Text above the hotbar", "Текст над хотбаром");
+        add("act.actionbar.text", "Text", "Текст");
+        add("act.sound", "Sound", "Звук");
+        add("act.sound.sound", "Sound id", "Звук (id)");
+        add("act.sound.volume", "Volume", "Громкость");
+        add("act.sound.pitch", "Pitch", "Высота");
+        add("act.chat", "Say in chat", "Написать в чат от игрока");
+        add("act.chat.message", "Message", "Сообщение");
+        add("trg.action.none", "No actions yet. Add a chat message, a command or something else.", "Действий пока нет. Добавьте сообщение в чат, команду или что-то ещё.");
         add("trg.placeholders", "Placeholders, click to insert:", "Подстановки, нажмите, чтобы вставить:");
         add("trg.test", "Test", "Проверить");
         add("trg.test.tooltip", "Runs this trigger's actions in the game with a sample event", "Выполнит действия триггера в игре на примере события");

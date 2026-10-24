@@ -237,6 +237,13 @@ Perform actions when the trigger is activated.
 | ----------------------------- | -------------------------------------------- |
 | `daintegrate/handler/message` | Adds a message to your chat                  |
 | `daintegrate/handler/command` | Sends a command to the server on your behalf |
+| `daintegrate/handler/title`   | Shows a title and subtitle on the screen     |
+| `daintegrate/handler/actionbar` | Shows text above the hotbar                |
+| `daintegrate/handler/sound`   | Plays a sound only you hear                  |
+| `daintegrate/handler/chat`    | Says something in chat as you                |
+
+Other mods can add their own handlers, see [Adding your own actions](#adding-your-own-actions).
+A trigger whose handler comes from a mod that is not installed still loads: that handler is skipped and kept in the file.
 
 ###### Delay
 
@@ -296,6 +303,90 @@ handlers:
     value:
       command: time set day
 ```
+
+#### Title
+
+Shows a title and subtitle in the middle of the screen
+
+| Name       | Type     | Description |
+| ---------- | -------- | ----------- |
+| `title`    | text     | Big line |
+| `subtitle` | text     | Small line under it |
+| `seconds`  | number   | How long it stays, 3 by default |
+
+```yaml
+handlers:
+- delay: 0
+  properties:
+    type: daintegrate/handler/title
+    value:
+      title: '{username}'
+      subtitle: 'spawns a creeper!'
+      seconds: 3
+```
+
+#### Action bar
+
+Shows `text` above the hotbar for a couple of seconds
+
+#### Sound
+
+Plays a sound only you hear. `sound` is a sound id such as `minecraft:entity.player.levelup`
+(the same ids `/playsound` takes), `volume` and `pitch` are 1 by default.
+
+```yaml
+handlers:
+- delay: 0
+  properties:
+    type: daintegrate/handler/sound
+    value:
+      sound: minecraft:entity.generic.explode
+      volume: 1
+      pitch: 0.8
+```
+
+#### Chat
+
+Sends `message` to the chat as you, so everyone on the server sees it
+
+## Adding your own actions
+
+Any Fabric mod can add actions that triggers run, and they show up in the menu next to messages and commands.
+
+1. Depend on this mod and add an entrypoint to your `fabric.mod.json`:
+
+```json
+"entrypoints": {
+  "daintegrate": [ "com.example.donations.MyActions" ]
+}
+```
+
+2. Describe the settings of your action as a class with public fields (`String`, `int`, `float`, `double`, `long` or `boolean`).
+   Field initialisers are the defaults; the menu shows one input per field.
+
+```java
+public class StrikeSettings {
+    public int count = 1;
+    public boolean damage = false;
+}
+```
+
+3. Register the action:
+
+```java
+public class MyActions implements DaIntegratePlugin {
+    @Override
+    public void register(IModuleConfiguration configuration) {
+        configuration.registerAction("strike", "Lightning strike", StrikeSettings.class, (event, settings) -> {
+            // Runs on the game thread. event has the donation: getUserName(), getAmount(), getMessage()...
+            var text = ReplaceHelper.replace("{username} sent {amount} {currency}", event, "");
+        });
+    }
+}
+```
+
+The action is saved in the settings file as `<your mod id>/handler/strike`. Use `None.class` for an action without settings.
+`configuration.registerEventListener(...)` also gets every donation, subscription and Twitch event as it arrives.
 
 ## Sub-modifications
 

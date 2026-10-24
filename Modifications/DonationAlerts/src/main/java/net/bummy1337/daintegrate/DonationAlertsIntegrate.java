@@ -8,10 +8,11 @@ import net.bummy1337.daintegrate.listeners.IListener;
 import net.bummy1337.daintegrate.sensitives.ISensitive;
 import net.bummy1337.dontaionalerts.ReadOnlyDonationAlertsEvent;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 public class DonationAlertsIntegrate {
@@ -19,10 +20,11 @@ public class DonationAlertsIntegrate {
 
     private ConcurrentHashMap<String, PropertiesDescriptor> entities = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, HandlerDescriptor> handlers = new ConcurrentHashMap<>();
+    private CopyOnWriteArrayList<HandlerDescriptor> handlerOrder = new CopyOnWriteArrayList<>();
     private ConcurrentHashMap<String, SensitiveDescriptor> sensitives = new ConcurrentHashMap<>();
     private TriggerDto[] triggers;
     private boolean skipTestDonation;
-    private ArrayList<IListener<ReadOnlyDonationAlertsEvent>> listeners = new ArrayList<>();
+    private CopyOnWriteArrayList<IListener<ReadOnlyDonationAlertsEvent>> listeners = new CopyOnWriteArrayList<>();
 
     public DonationAlertsIntegrate()
     {
@@ -35,7 +37,31 @@ public class DonationAlertsIntegrate {
     static <T extends IHandler> void registerHandler(T handler, String modId, String modUrl) {
         var descriptor = new PropertiesDescriptor<T>(handler, new EntityId(modId, handler.getImplementationId(), "handler", modUrl));
         Instance.entities.put(descriptor.getUniqueId(), descriptor);
-        Instance.handlers.put(descriptor.getUniqueId(), new HandlerDescriptor(handler, descriptor));
+        putHandler(new HandlerDescriptor(handler, descriptor));
+    }
+
+    static <T> void registerAction(String id, String title, Class<T> propertiesType, IAction<T> action, String modId, String modUrl) {
+        var descriptor = new PropertiesDescriptor<T>(propertiesType, new EntityId(modId, id, "handler", modUrl));
+        IHandler<T> handler = new IHandler<>() {
+            @Override
+            public void handle(ReadOnlyDonationAlertsEvent event, T properties) {
+                action.run(event, properties);
+            }
+
+            @Override
+            public String getImplementationId() {
+                return id;
+            }
+        };
+        Instance.entities.put(descriptor.getUniqueId(), descriptor);
+        putHandler(new HandlerDescriptor<>(handler, descriptor, title));
+    }
+
+    private static void putHandler(HandlerDescriptor descriptor) {
+        var previous = Instance.handlers.put(descriptor.getProperties().getUniqueId(), descriptor);
+        if (previous != null)
+            Instance.handlerOrder.remove(previous);
+        Instance.handlerOrder.add(descriptor);
     }
 
     static <T extends ISensitive> void registerSensitive(T sensitive, String modId, String modUrl) {
@@ -50,6 +76,11 @@ public class DonationAlertsIntegrate {
 
     public static Iterator<HandlerDescriptor> getHandler() {
         return Instance.handlers.elements().asIterator();
+    }
+
+    /** Every registered action, in the order mods registered them. */
+    public static List<HandlerDescriptor> getActions() {
+        return List.copyOf(Instance.handlerOrder);
     }
 
     public static Iterator<IListener<ReadOnlyDonationAlertsEvent>> getEventListeners() {
@@ -73,7 +104,8 @@ public class DonationAlertsIntegrate {
     }
 
     public static Stream<TriggerDto> getTriggers() {
-        return Arrays.stream(Instance.triggers);
+        var triggers = Instance.triggers;
+        return triggers == null ? Stream.empty() : Arrays.stream(triggers);
     }
 
     public static boolean isSkipTestDonation() {

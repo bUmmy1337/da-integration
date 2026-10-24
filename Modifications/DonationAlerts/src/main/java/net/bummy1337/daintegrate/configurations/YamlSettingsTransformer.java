@@ -1,7 +1,6 @@
 package net.bummy1337.daintegrate.configurations;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import net.bummy1337.daintegrate.Constants;
 import net.bummy1337.daintegrate.DonationAlertsIntegrate;
 import net.bummy1337.daintegrate.ITransformer;
@@ -22,15 +21,21 @@ public class YamlSettingsTransformer implements ITransformer<String, SettingsDto
         for (var trigger : result.triggers) {
             if (trigger == null)
                 continue;
+            if (trigger.handlers == null)
+                trigger.handlers = new HandlerPropertiesDto[0];
+            if (trigger.sensitives == null)
+                trigger.sensitives = new SensitivePropertiesDto[0];
             for (var handler : trigger.handlers) {
                 if (handler == null)
                     continue;
-                replaceHashMap(handler.properties);
+                if (handler.properties != null)
+                    replaceHashMap(handler.properties);
             }
             for (var sensitive : trigger.sensitives) {
                 if (sensitive == null)
                     continue;
-                replaceHashMap(sensitive.properties);
+                if (sensitive.properties != null)
+                    replaceHashMap(sensitive.properties);
             }
         }
         return result;
@@ -49,8 +54,10 @@ public class YamlSettingsTransformer implements ITransformer<String, SettingsDto
             }
         }
 
+        // A type from a mod that is not installed: keep its settings as they are, so saving
+        // from the menu does not lose them, and the trigger skips it at run time
         if (!DonationAlertsIntegrate.knownEntity(typeName))
-            throw new JsonParseException("Does not contains '" + typeName + "' properties descriptor");
+            return;
 
         if (properties.value instanceof String) {
             var legacyValue = (String) properties.value;
@@ -62,6 +69,8 @@ public class YamlSettingsTransformer implements ITransformer<String, SettingsDto
             properties.value = map;
         }
 
+        if (properties.value == null)
+            properties.value = new LinkedHashMap<String, Object>();
         var map = (LinkedHashMap<String, Object>)properties.value;
         var type = DonationAlertsIntegrate.getProperties(typeName).getType();
         var json = gson.toJson(map);
