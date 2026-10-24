@@ -28,7 +28,7 @@ public class Main {
         source.startListening();
         var listener = new DonationAlertsEventListener(new EventProcessor());
         try {
-            var client = new DonationAlertsClient("https://socket.donationalerts.ru:443", listener);
+            var client = new DonationAlertsClient(Constants.DonationAlertsEventServer, listener);
             client.connect(token);
 
             while (true)
