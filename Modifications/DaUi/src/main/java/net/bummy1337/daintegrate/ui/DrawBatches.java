@@ -71,10 +71,37 @@ public final class DrawBatches {
                     int abgr = vertexData.getInt(v + 16);
                     colors[e] = (abgr & 0xFF00FF00) | ((abgr & 0xFF) << 16) | ((abgr >> 16) & 0xFF);
                 }
+                faceFront(vertices, colors);
                 batches.add(new Batch(drawData.getCmdListCmdBufferTextureId(list, cmd), left, top, right, bottom, vertices, colors));
             }
         }
         return batches;
+    }
+
+    /**
+     * ImGui does not care about winding and emits most shapes clockwise, but the game's GUI
+     * pipelines cull back faces, which made every fill and every glyph disappear. Turns each
+     * triangle counter-clockwise on screen (y down), like the game's own GUI quads.
+     */
+    static void faceFront(float[] vertices, int[] colors) {
+        int stride = Batch.Stride;
+        for (int t = 0; t + 2 < colors.length; t += 3) {
+            int a = t * stride;
+            int b = a + stride;
+            int c = b + stride;
+            float cross = (vertices[b] - vertices[a]) * (vertices[c + 1] - vertices[a + 1])
+                    - (vertices[b + 1] - vertices[a + 1]) * (vertices[c] - vertices[a]);
+            if (cross <= 0)
+                continue;
+            for (int i = 0; i < stride; i++) {
+                float swap = vertices[b + i];
+                vertices[b + i] = vertices[c + i];
+                vertices[c + i] = swap;
+            }
+            int swap = colors[t + 1];
+            colors[t + 1] = colors[t + 2];
+            colors[t + 2] = swap;
+        }
     }
 
     private static ByteBuffer copy(ByteBuffer source) {
