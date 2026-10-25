@@ -37,6 +37,10 @@ public final class DrawBatches {
         int vertexSize = ImDrawData.sizeOfImDrawVert();
         int indexSize = ImDrawData.sizeOfImDrawIdx();
         var clip = new ImVec4();
+        // The game rejects a scissor that leaves its render area, and ImGui's clip rectangles can
+        // (the dimmed backdrop of a modal popup does), which crashed the game
+        int maxX = (int) Math.floor(drawData.getDisplaySizeX() / scale);
+        int maxY = (int) Math.floor(drawData.getDisplaySizeY() / scale);
 
         for (int list = 0; list < drawData.getCmdListsCount(); list++) {
             // Both getters reuse one native buffer, so the vertices must be copied before reading indices
@@ -49,10 +53,10 @@ public final class DrawBatches {
                     continue;
 
                 drawData.getCmdListCmdBufferClipRect(clip, list, cmd);
-                int left = (int) Math.floor((clip.x - offsetX) / scale);
-                int top = (int) Math.floor((clip.y - offsetY) / scale);
-                int right = (int) Math.ceil((clip.z - offsetX) / scale);
-                int bottom = (int) Math.ceil((clip.w - offsetY) / scale);
+                int left = clamp((int) Math.floor((clip.x - offsetX) / scale), maxX);
+                int top = clamp((int) Math.floor((clip.y - offsetY) / scale), maxY);
+                int right = clamp((int) Math.ceil((clip.z - offsetX) / scale), maxX);
+                int bottom = clamp((int) Math.ceil((clip.w - offsetY) / scale), maxY);
                 if (right <= left || bottom <= top)
                     continue;
 
@@ -76,6 +80,10 @@ public final class DrawBatches {
             }
         }
         return batches;
+    }
+
+    static int clamp(int value, int max) {
+        return Math.max(0, Math.min(max, value));
     }
 
     /**

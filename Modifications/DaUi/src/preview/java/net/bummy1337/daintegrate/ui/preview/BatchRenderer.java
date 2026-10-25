@@ -102,6 +102,10 @@ class BatchRenderer {
             int y = Math.round(batch.clipTop() * guiScale);
             int w = Math.round((batch.clipRight() - batch.clipLeft()) * guiScale);
             int h = Math.round((batch.clipBottom() - batch.clipTop()) * guiScale);
+            // Like the game, which crashes on a scissor outside its render area
+            if (x < 0 || y < 0 || x + w > framebufferWidth || y + h > framebufferHeight)
+                throw new IllegalArgumentException("Scissor at " + x + ", " + y + " with size " + w + "x" + h
+                        + " is out of bounds for " + framebufferWidth + "x" + framebufferHeight);
             glScissor(x, framebufferHeight - y - h, w, h);
             glDrawElements(GL_TRIANGLES, triangles * 6, GL_UNSIGNED_INT, 0);
         }
