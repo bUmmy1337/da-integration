@@ -62,32 +62,37 @@ public final class Theme {
         return col(White, alpha);
     }
 
+    private static float px(float size, float scale) {
+        return (float) Math.floor(size * scale);
+    }
+
     public static void apply(float scale) {
         ImGuiStyle style = ImGui.getStyle();
-        style.setWindowPadding(20, 20);
-        style.setFramePadding(12, 8);
-        style.setItemSpacing(10, 10);
-        style.setItemInnerSpacing(8, 6);
-        style.setCellPadding(12, 8);
-        style.setIndentSpacing(18);
-        style.setScrollbarSize(8);
-        style.setWindowRounding(18);
-        style.setChildRounding(14);
-        style.setFrameRounding(10);
-        style.setPopupRounding(14);
-        style.setScrollbarRounding(8);
-        style.setGrabRounding(10);
-        style.setTabRounding(10);
+        // Sizes are set scaled rather than with scaleAllSizes: that one scales the current style again on
+        // every scale change, so sizes this method does not reset shrank each time until ImGui asserted
+        // (WindowBorderHoverPadding > 0) and the game closed
+        style.setWindowPadding(px(20, scale), px(20, scale));
+        style.setFramePadding(px(12, scale), px(8, scale));
+        style.setItemSpacing(px(10, scale), px(10, scale));
+        style.setItemInnerSpacing(px(8, scale), px(6, scale));
+        style.setCellPadding(px(12, scale), px(8, scale));
+        style.setIndentSpacing(px(18, scale));
+        style.setScrollbarSize(px(8, scale));
+        style.setWindowRounding(px(18, scale));
+        style.setChildRounding(px(14, scale));
+        style.setFrameRounding(px(10, scale));
+        style.setPopupRounding(px(14, scale));
+        style.setScrollbarRounding(px(8, scale));
+        style.setGrabRounding(px(10, scale));
+        style.setTabRounding(px(10, scale));
         style.setWindowBorderSize(1);
         style.setChildBorderSize(1);
         style.setPopupBorderSize(1);
         style.setFrameBorderSize(0);
-        style.setWindowMinSize(32, 32);
-        style.setGrabMinSize(14);
+        style.setWindowMinSize(px(32, scale), px(32, scale));
+        style.setGrabMinSize(px(14, scale));
         style.setButtonTextAlign(0.5f, 0.5f);
         style.setSelectableTextAlign(0f, 0.5f);
-        if (scale != 1f)
-            style.scaleAllSizes(scale);
 
         set(style, ImGuiCol.Text, White, TextAlpha);
         set(style, ImGuiCol.TextDisabled, White, TextMutedAlpha);
