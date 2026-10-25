@@ -351,6 +351,9 @@ Sends `message` to the chat as you, so everyone on the server sees it
 
 ## Adding your own actions
 
+A step-by-step guide (in Russian) is in the [addon wiki](docs/wiki/Home.md), and
+[`Modifications/ExampleAddon`](Modifications/ExampleAddon) is a complete addon built in CI.
+
 Any Fabric mod can add actions that triggers run, and they show up in the menu next to messages and commands.
 
 1. Depend on this mod and add an entrypoint to your `fabric.mod.json`:

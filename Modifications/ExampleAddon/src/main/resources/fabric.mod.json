@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "daintegrate-example-addon",
+  "version": "${version}",
+  "name": "Donation Alerts Integrate: example addon",
+  "description": "Adds two actions to Donation Alerts Integrate triggers: hearts around the player and a thank-you on screen.",
+  "authors": [
+    "bUmmy1337"
+  ],
+  "contact": {
+    "homepage": "https://github.com/bummy1337/da-integration/wiki/Making-an-addon"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "daintegrate": [
+      "net.bummy1337.exampleaddon.ExampleAddon"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": ">=26.3",
+    "java": ">=25",
+    "daintegrate": ">=2.0.1"
+  }
+}

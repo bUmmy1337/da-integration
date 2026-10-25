@@ -1,0 +1,35 @@
+// An addon for Donation Alerts Integrate, kept in this repository to check that the API works
+// and to show how to make one. A real addon builds the same way, with the mod's jar instead of
+// the project dependency below; see the wiki page "Making an addon".
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+base.archivesName = project.archives_base_name
+group = project.maven_group
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    // The API: at run time Donation Alerts Integrate provides it, so it is not packed into the addon
+    compileOnly project(':DonationAlerts')
+}
+
+processResources {
+    def version = project.version
+    inputs.property "version", version
+    filesMatching("fabric.mod.json") {
+        expand "version": version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 25
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
