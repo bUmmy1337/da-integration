@@ -22,8 +22,9 @@ public class DonationAlertsIntegrate {
     private ConcurrentHashMap<String, HandlerDescriptor> handlers = new ConcurrentHashMap<>();
     private CopyOnWriteArrayList<HandlerDescriptor> handlerOrder = new CopyOnWriteArrayList<>();
     private ConcurrentHashMap<String, SensitiveDescriptor> sensitives = new ConcurrentHashMap<>();
-    private TriggerDto[] triggers;
-    private boolean skipTestDonation;
+    // Written by the settings file watcher, read by the game thread when a donation comes
+    private volatile TriggerDto[] triggers;
+    private volatile boolean skipTestDonation;
     private CopyOnWriteArrayList<IListener<ReadOnlyDonationAlertsEvent>> listeners = new CopyOnWriteArrayList<>();
 
     public DonationAlertsIntegrate()

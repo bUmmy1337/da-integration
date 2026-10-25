@@ -25,9 +25,15 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
+/**
+ * Settings file that the menu writes and the triggers read. The file watcher and the menu run on
+ * different threads, so every read and write of the file goes through one lock: otherwise the watcher
+ * could read a half-written file and leave the triggers that fire different from those in the menu.
+ */
 public class FileConfigurationSource implements IConfigurationSource {
     private final String path;
     private final String watchedFileName;
@@ -36,7 +42,7 @@ public class FileConfigurationSource implements IConfigurationSource {
     private final ITransformer<String, SettingsDto> transformer;
     private final IListener<String> log;
     private final MessageDigest md;
-    private SettingsDto current;
+    private volatile SettingsDto current;
 
     {
         try {
@@ -63,7 +69,8 @@ public class FileConfigurationSource implements IConfigurationSource {
         this.path = cp.toString();
         watchedFileName = file;
         watcher = FileSystems.getDefault().newWatchService();
-        cp.register(watcher, ENTRY_MODIFY);
+        // Saving goes through a temporary file and a rename, which shows up as a new file
+        cp.register(watcher, ENTRY_CREATE, ENTRY_MODIFY);
         this.listeners = listeners;
     }
 
@@ -158,7 +165,7 @@ public class FileConfigurationSource implements IConfigurationSource {
     }
 
     /** Re-reads the settings file even if it looks unchanged. */
-    public void reload() {
+    public synchronized void reload() {
         currentHash = null;
         tryUpdate();
     }
@@ -167,24 +174,29 @@ public class FileConfigurationSource implements IConfigurationSource {
         return new File(path, watchedFileName);
     }
 
-    private void tryUpdate() {
+    private synchronized void tryUpdate() {
         try {
             String json = null;
             json = Files.readString(Paths.get(path, watchedFileName));
             if (json == null)
                 return;
-            var hash = md.digest(json.getBytes());
+            var hash = hash(json);
             if (Arrays.equals(hash, currentHash))
                 return;
-            currentHash = hash;
             var value = transformer.transform(json);
-            if (value != null) {
-                onValue(value);
-                current = value;
-            }
+            if (value == null)
+                return;
+            // Remember the file only once it is read, so a file caught mid-write by another program is read again
+            currentHash = hash;
+            current = value;
+            onValue(value);
         } catch (Exception e) {
             log.onValue("error while update the settings from file: " + e);
         }
+    }
+
+    private byte[] hash(String text) {
+        return md.digest(text.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
@@ -205,7 +217,7 @@ public class FileConfigurationSource implements IConfigurationSource {
         return current;
     }
 
-    public void save(SettingsDto settings) throws IOException {
+    public synchronized void save(SettingsDto settings) throws IOException {
         var options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         var representer = new Representer(options);
@@ -224,13 +236,25 @@ public class FileConfigurationSource implements IConfigurationSource {
         for (var action : DonationAlertsIntegrate.getActions())
             representer.addClassTag(action.getProperties().getType(), Tag.MAP);
         var yaml = new Yaml(representer, options);
-        var fileHandle = new File(path, watchedFileName);
         var output = yaml.dump(settings);
-        PrintWriter writer = new PrintWriter(fileHandle, StandardCharsets.UTF_8);
-        writer.print(output);
-        writer.close();
-        currentHash = md.digest(output.getBytes());
+        // Known before the watcher sees the change, so it does not read the file back
+        currentHash = hash(output);
+        write(output);
         current = settings;
         onValue(settings);
+    }
+
+    /** Replaces the file in one step, so nobody ever reads it half-written. */
+    private void write(String content) throws IOException {
+        var target = Paths.get(path, watchedFileName);
+        var temporary = Paths.get(path, watchedFileName + ".tmp");
+        Files.writeString(temporary, content, StandardCharsets.UTF_8);
+        try {
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException e) {
+            // The file is held by another program (an antivirus, an editor): write it in place
+            Files.deleteIfExists(temporary);
+            Files.writeString(target, content, StandardCharsets.UTF_8);
+        }
     }
 }
