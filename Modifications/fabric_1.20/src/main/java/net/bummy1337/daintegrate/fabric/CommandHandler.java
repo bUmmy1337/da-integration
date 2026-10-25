@@ -12,7 +12,7 @@ public class CommandHandler implements IHandler<CommandHandlerProperties> {
         var player = Minecraft.getInstance().player;
         if (player == null)
             return;
-        player.connection.sendCommand(ReplaceHelper.replace(properties.command, event, player.getName().getString()));
+        PlayerCommands.run(ReplaceHelper.replace(properties.command, event, player.getName().getString()));
     }
 
     @Override

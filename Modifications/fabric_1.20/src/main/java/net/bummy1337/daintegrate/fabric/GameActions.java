@@ -66,7 +66,7 @@ final class GameActions {
         if (text.length() > MaxChatLength)
             text = text.substring(0, MaxChatLength);
         if (text.startsWith("/"))
-            player.connection.sendCommand(text.substring(1));
+            PlayerCommands.run(text.substring(1));
         else
             player.connection.sendChat(text);
     }

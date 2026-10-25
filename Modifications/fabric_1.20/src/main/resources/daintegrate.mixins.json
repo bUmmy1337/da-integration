@@ -4,7 +4,8 @@
   "package": "net.bummy1337.daintegrate.fabric.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "GuiGraphicsExtractorAccessor"
+    "GuiGraphicsExtractorAccessor",
+    "IntegratedServerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
