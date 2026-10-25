@@ -524,14 +524,16 @@ class TriggersPage {
             addTrigger(copy);
         }
         ImGui.sameLine();
-        if (Widgets.dangerButton(I18n.t("trg.delete"), 0)) {
+        // The modal is opened in renderDeleteModal: a popup id depends on the window it is
+        // opened from, and opening it here, inside the editor, never showed the modal
+        if (Widgets.dangerButton(I18n.t("trg.delete"), 0))
             pendingDelete = selected;
-            ImGui.openPopup("##delete");
-        }
     }
 
     private void renderDeleteModal() {
         float s = DaMenu.scale();
+        if (pendingDelete >= 0 && !ImGui.isPopupOpen("##delete"))
+            ImGui.openPopup("##delete");
         if (!ImGui.beginPopupModal("##delete", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoTitleBar))
             return;
         var name = pendingDelete >= 0 && pendingDelete < working.size() ? working.get(pendingDelete).name : "";
